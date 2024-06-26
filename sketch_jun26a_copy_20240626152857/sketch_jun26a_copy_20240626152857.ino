@@ -10,7 +10,7 @@ void setup() {
 }
 
 void loop() {
-  count(56.5, 56.5, -99, 1);
+  count(70, 55, -40, 1);
 }
 
 void count(float x, float y, float z, int serv){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
@@ -43,7 +43,7 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   Serial.print("   ");
   Serial.print(gamma);
   Serial.println("");
-  
+
   if(serv == 1) return(alpha);
   if(serv == 2) return(beta);
   if(serv == 3) return(gamma);

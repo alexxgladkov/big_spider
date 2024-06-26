@@ -44,4 +44,7 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   Serial.print(gamma);
   Serial.println("");
   
+  if(serv == 1) return(alpha);
+  if(serv == 2) return(beta);
+  if(serv == 3) return(gamma);
 }

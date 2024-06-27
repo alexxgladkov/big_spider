@@ -1,17 +1,19 @@
+#include "ServoDriverSmooth.h"
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
 #define q 17.5 // угол между осью плеча B перпендикуляром к A
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
+ServoDriverSmooth legs[18];
 
 void setup() {
   Serial.begin(9600);
+  for(int i = 0; i < 19; i++) legs[i].attach(i);
 }
 
 void loop() {  
-  calculate(-53, 150);
-  count(150, 0, -52, 1);
+  for(int i = 0; i < 19; i++) legs[i].tick();
 }
 
 void count(float x, float y, float z, int serv){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
@@ -47,9 +49,9 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   Serial.print(gamma);
   Serial.println("");
 
-  if(serv == 1) return(alpha);
+  if(serv == 1) return(gamma);
   if(serv == 2) return(beta);
-  if(serv == 3) return(gamma);
+  if(serv == 3) return(alpha);
 }
 
 void calculate(float z, float x){

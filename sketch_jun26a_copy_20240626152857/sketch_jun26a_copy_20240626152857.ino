@@ -1,19 +1,62 @@
+#include <Servo.h>
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
 #define q 17.5 // угол между осью плеча B перпендикуляром к A
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
+Servo myservos[18];
+int counter;
+int triple1[] = {0, 2, 4};
+int triple2[] = {5, 3, 1};
+uint32_t tmr1 = millis();
 
 void setup() {
   Serial.begin(9600);
+  for(int i = 0; i < 18; i++) myservos[i].attach(i + 2);
+  move_to(80, 80, -20, 3);
+  
 }
 
 void loop() {  
-  calculate(-40, 0);
+  step_forward(1000);
 }
 
-void count(float x, float y, float z, int serv){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
+void step_forward(int period){  
+  if(millis() - tmr1 >= period){
+    tmr1 = millis();
+    counter += 1;
+  }
+  switch(counter){
+    case 1:
+      for(int i = 0; i < 3; i++) move_to(70, 70, -40, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, -70, -10, triple2[i]);
+      break;
+    case 2:
+      for(int i = 0; i < 3; i++) move_to(70, 0, -40, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, 0, -20, triple2[i]);
+      break;
+    case 3:
+      for(int i = 0; i < 3; i++) move_to(70, -70, -40, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, 70, -10, triple2[i]);
+      break;
+    case 4:
+      for(int i = 0; i < 3; i++) move_to(70, -70, -10, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, 70, -40, triple2[i]);
+      break;
+    case 5:
+      for(int i = 0; i < 3; i++) move_to(70, 0, -20, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, 0, -40, triple2[i]);
+      break;
+    case 6:
+      for(int i = 0; i < 3; i++) move_to(70, 70, -10, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(70, -70, -40, triple2[i]);
+      counter = 0;
+      break;
+  }
+}
+
+void move_to(float x, float y, float z, int leg_num){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
   // на виде сверху найдем три точки: начало координат (0,0), точка ноги (x, y), доп точка (0, 5)
   // обозначим стороны этого треугольника за e, f, g. f против искомого угла
   int e = 5;                             // сторона между началом координат и доп точкой
@@ -39,16 +82,14 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   beta = 180 - beta_ - omega - q; // вычисляются значения серво 2 и 3
   alpha = alpha_ - q;
 
-  Serial.print(alpha);
-  Serial.print("   ");
-  Serial.print(beta);
-  Serial.print("   ");
-  Serial.print(gamma);
-  Serial.println("");
+  int leg_poz[] = {gamma, beta, alpha};
+  if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
+  Serial.println(leg_poz[0]);
+  Serial.println(leg_poz[1]);
+  Serial.println(leg_poz[2]);
+  for(int i = 0; i < 3; i++) myservos[leg_num * 3 + i].write(leg_poz[i]);
 
-  if(serv == 1) return(gamma);
-  if(serv == 2) return(beta);
-  if(serv == 3) return(alpha);
+  //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног
 }
 
 void calculate(float z, float x){

@@ -9,8 +9,9 @@ void setup() {
   Serial.begin(9600);
 }
 
-void loop() {
-  count(70, 55, -40, 1);
+void loop() {  
+  calculate(-53, 150);
+  count(150, 0, -52, 1);
 }
 
 void count(float x, float y, float z, int serv){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
@@ -19,7 +20,9 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   int e = 5;                             // сторона между началом координат и доп точкой
   float g = sqrt(sq(x) + sq(y));         // по факту x - 0 и y - 0 но эт не важно
   float f = sqrt(sq(x - 0) + sq(y - 5)); //ищем длинну g и f
-  float gamma = degrees(acos((sq(e) + sq(g) - sq(f)) / (2 * e * g))); //угол поворота ноги в суставе 1
+  float gamma; 
+  if(x == y) gamma = 45;
+  else  gamma = degrees(acos((sq(e) + sq(g) - sq(f)) / (2 * e * g)));//угол поворота ноги в суставе 1
   // Здесь мы определили угол поворота первого сустава, дальше определим для второго. 
   // g посути мы теперь используем как х для вида сбоку ноги, а z как y, но использовать мы будем g и z 
   
@@ -47,4 +50,28 @@ void count(float x, float y, float z, int serv){ //координаты ноги
   if(serv == 1) return(alpha);
   if(serv == 2) return(beta);
   if(serv == 3) return(gamma);
+}
+
+void calculate(float z, float x){
+  float g_min;
+  float g_max;
+  if(z >= 0){
+    g_min = sqrt(sq(c) - sq(43.7 - z)) + 50;
+  }else if(-z >= b){
+    g_min = 15;
+  }else{
+    g_min = sqrt(sq(43) - sq(z)) + 36;
+  }
+  g_max = sqrt(17161 - sq(z)) + 36;
+  //посчитали ограничения g
+  float y_max = sqrt(sq(g_max) - sq(x));
+  Serial.print("x  ");
+  Serial.print(g_min);
+  Serial.print(" / ");
+  Serial.print(g_max);
+  Serial.print("   y  ");
+  Serial.print(y_max);
+  Serial.print(" / ");
+  Serial.print(-y_max);
+  Serial.println("");
 }

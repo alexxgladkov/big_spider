@@ -17,7 +17,7 @@ void setup() {
 }
 
 void loop() {  
-  moving_at_angle(45, 10, 5, -40, -50, 1000);
+  moving_at_angle(45, 85, 20, -50, -60, 1000);
 }
 
 void moving_at_angle(float move_angle, int l_dist, int l_step, int l_up, int l_down, int period){
@@ -90,9 +90,9 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
 
   int leg_poz[] = {gamma, beta, alpha};
   if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
-  Serial.println(leg_poz[0]);
-  Serial.println(leg_poz[1]);
-  Serial.println(leg_poz[2]);
+  Serial.println(String(leg_poz[0]) + "             1");
+  Serial.println(String(leg_poz[1]) + "             2");
+  Serial.println(String(leg_poz[2]) + "             3");
   for(int i = 0; i < 3; i++) myservos[leg_num * 3 + i].write(leg_poz[i]);
 
   //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног

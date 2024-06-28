@@ -14,43 +14,49 @@ uint32_t tmr1 = millis();
 void setup() {
   Serial.begin(9600);
   for(int i = 0; i < 18; i++) myservos[i].attach(i + 2);
-  move_to(80, 80, -20, 3);
-  
 }
 
 void loop() {  
-  step_forward(1000);
+  moving_at_angle(45, 10, 5, -40, -50, 1000);
 }
 
-void step_forward(int period){  
+void moving_at_angle(float move_angle, int l_dist, int l_step, int l_up, int l_down, int period){
+  //нужно посчитать координаты х у для этого рассмотрим треугольник с углом move_angle 
+  //и сторонами l_step, l_perp и l_diff. Ищем стороны l_perp и l_diff
+  float l_perp = sin(radians(move_angle)) * l_step;
+  float l_diff = sin(radians(90 - move_angle)) * l_step;
+  float frst_pos[] = {l_dist - l_diff, l_perp};   // X Y
+  float midl_pos[] = {l_dist, 0};                 // X Y
+  float scnd_pos[] = {l_dist + l_diff, -l_perp};  // X Y здесь записаны позиции для движения ног
+  //теперь передадим эти позиции в алгоритм движения 
   if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1;
   }
   switch(counter){
     case 1:
-      for(int i = 0; i < 3; i++) move_to(70, 70, -40, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, -70, -10, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_down, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_up, triple2[i]);
       break;
     case 2:
-      for(int i = 0; i < 3; i++) move_to(70, 0, -40, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, 0, -20, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_down, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_up, triple2[i]);
       break;
     case 3:
-      for(int i = 0; i < 3; i++) move_to(70, -70, -40, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, 70, -10, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_down, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_up, triple2[i]);
       break;
     case 4:
-      for(int i = 0; i < 3; i++) move_to(70, -70, -10, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, 70, -40, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_up, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_down, triple2[i]);
       break;
     case 5:
-      for(int i = 0; i < 3; i++) move_to(70, 0, -20, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, 0, -40, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_up, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_down, triple2[i]);
       break;
     case 6:
-      for(int i = 0; i < 3; i++) move_to(70, 70, -10, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(70, -70, -40, triple2[i]);
+      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_up, triple1[i]);
+      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_down, triple2[i]);
       counter = 0;
       break;
   }

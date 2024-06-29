@@ -3,60 +3,72 @@
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
 #define q 17.5 // угол между осью плеча B перпендикуляром к A
+
+#define y_lenth1 90
+#define x_lenth1 77.5
+#define x_lenth2 57.5
+
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
 Servo myservos[18];
 int counter;
-int triple1[] = {0, 2, 4};
-int triple2[] = {5, 3, 1};
 uint32_t tmr1 = millis();
+
+float positions[6][4]{
+  {0, 0, 0, 0}, // нога 0 (х, у) нач (х, у) кон
+  {0, 0, 0, 0},
+  {0, 0, 0, 0},
+  {0, 0, 0, 0},
+  {0, 0, 0, 0},
+  {0, 0, 0, 0}, // нога 5 (х, у) нач (х, у) кон
+};
 
 void setup() {
   Serial.begin(9600);
   for(int i = 0; i < 18; i++) myservos[i].attach(i + 2);
+  angle_moving(135, 80, 30, -40, -50, 1000);
+  hexapod();
 }
 
 void loop() {  
-  moving_at_angle(45, 85, 20, -50, -60, 1000);
+  
 }
 
-void moving_at_angle(float move_angle, int l_dist, int l_step, int l_up, int l_down, int period){
+void angle_moving(float move_angle, int l_dist, int l_step, int l_up, int l_down, int period){
   //нужно посчитать координаты х у для этого рассмотрим треугольник с углом move_angle 
   //и сторонами l_step, l_perp и l_diff. Ищем стороны l_perp и l_diff
   float l_perp = sin(radians(move_angle)) * l_step;
   float l_diff = sin(radians(90 - move_angle)) * l_step;
-  float frst_pos[] = {l_dist - l_diff, l_perp};   // X Y
-  float midl_pos[] = {l_dist, 0};                 // X Y
-  float scnd_pos[] = {l_dist + l_diff, -l_perp};  // X Y здесь записаны позиции для движения ног
-  //теперь передадим эти позиции в алгоритм движения 
+
+  for(int i = 0; i < 6; i++){             // X Y здесь записаны позиции для движения ног
+    positions[i][0] = l_dist - l_diff;
+    positions[i][1] = l_perp;
+    positions[i][2] = l_dist + l_diff;
+    positions[i][3] = -l_perp;
+  }
+}
+
+void hexapod(){
   if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1;
   }
   switch(counter){
     case 1:
-      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_down, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_up, triple2[i]);
+      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
       break;
     case 2:
-      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_down, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_up, triple2[i]);
+      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
       break;
     case 3:
-      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_down, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_up, triple2[i]);
+      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
       break;
     case 4:
-      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_up, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_down, triple2[i]);
-      break;
-    case 5:
-      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_up, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(midl_pos[0], midl_pos[1], l_down, triple2[i]);
-      break;
-    case 6:
-      for(int i = 0; i < 3; i++) move_to(frst_pos[0], frst_pos[1], l_up, triple1[i]);
-      for(int i = 0; i < 3; i++) move_to(scnd_pos[0], scnd_pos[1], l_down, triple2[i]);
+      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
       counter = 0;
       break;
   }
@@ -90,9 +102,11 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
 
   int leg_poz[] = {gamma, beta, alpha};
   if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
+  /*
   Serial.println(String(leg_poz[0]) + "             1");
   Serial.println(String(leg_poz[1]) + "             2");
   Serial.println(String(leg_poz[2]) + "             3");
+  */
   for(int i = 0; i < 3; i++) myservos[leg_num * 3 + i].write(leg_poz[i]);
 
   //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног

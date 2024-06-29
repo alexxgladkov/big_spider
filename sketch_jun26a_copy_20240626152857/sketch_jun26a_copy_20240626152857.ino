@@ -26,15 +26,38 @@ float positions[6][4]{
 void setup() {
   Serial.begin(9600);
   for(int i = 0; i < 18; i++) myservos[i].attach(i + 2);
-  angle_moving(135, 80, 30, -40, -50, 1000);
-  hexapod();
+
 }
 
 void loop() {  
-  
+  rotation(80, 30);
+  hexapod(1000, -40, -50);
 }
 
-void angle_moving(float move_angle, int l_dist, int l_step, int l_up, int l_down, int period){
+void rotation(int angle_dist, int l_step){
+  int angles[] = {45, 90, 135, 135, 90, 45};
+  for(int i = 0; i < 6; i++){
+    int angle = angles[i];
+    float l_diag = sqrt(sq(angle_dist) + sq(l_step));  //ищем длинну диагонали
+    float omicron = degrees(acos((sq(angle_dist) + sq(l_diag) - sq(l_step)) / (2 * l_diag * angle_dist))); // ищем угол между angle_dist и l_diag
+    float epsilon1 = angle - omicron;
+    float kappa1 = 90 - epsilon1;               //ищем углы для треугольника обр Х1 и У1
+    float Y1 = sin(radians(kappa1)) * l_diag;
+    float X1 = sin(radians(epsilon1)) * l_diag; //ищем координаты
+
+    float epsilon2 = angle + omicron;
+    float kappa2 = 90 - epsilon2;               //ищем углы для треугольника обр Х2 и У2
+    float Y2 = sin(radians(kappa2)) * l_diag;
+    float X2 = sin(radians(epsilon2)) * l_diag; //ищем координаты
+
+    positions[i][0] = X1;
+    positions[i][1] = Y1;
+    positions[i][2] = X2;
+    positions[i][3] = Y2;
+  }
+} 
+
+void angle_moving(float move_angle, int l_dist, int l_step){
   //нужно посчитать координаты х у для этого рассмотрим треугольник с углом move_angle 
   //и сторонами l_step, l_perp и l_diff. Ищем стороны l_perp и l_diff
   float l_perp = sin(radians(move_angle)) * l_step;
@@ -48,7 +71,7 @@ void angle_moving(float move_angle, int l_dist, int l_step, int l_up, int l_down
   }
 }
 
-void hexapod(){
+void hexapod(int period, int l_up, int l_down){
   if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1;
@@ -102,11 +125,11 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
 
   int leg_poz[] = {gamma, beta, alpha};
   if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
-  /*
+
   Serial.println(String(leg_poz[0]) + "             1");
   Serial.println(String(leg_poz[1]) + "             2");
   Serial.println(String(leg_poz[2]) + "             3");
-  */
+
   for(int i = 0; i < 3; i++) myservos[leg_num * 3 + i].write(leg_poz[i]);
 
   //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног

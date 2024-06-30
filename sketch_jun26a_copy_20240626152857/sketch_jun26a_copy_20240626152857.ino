@@ -1,4 +1,7 @@
-#include <Servo.h>
+#include "ServoDriverSmooth.h"
+ServoDriverSmooth Servo_right[9](0x41, 180);
+ServoDriverSmooth Servo_left[9](0x40, 180);
+
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
@@ -10,7 +13,7 @@
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
-Servo myservos[18];
+
 int counter;
 uint32_t tmr1 = millis();
 
@@ -25,7 +28,8 @@ float positions[6][4]{
 
 void setup() {
   Serial.begin(9600);
-  for(int i = 0; i < 18; i++) myservos[i].attach(i + 2);
+  for(int i = 0; i < 9; i++) Servo_right[i].attach(i);
+  for(int i = 0; i < 9; i++) Servo_left[i].attach(i);
 
 }
 
@@ -125,12 +129,25 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
 
   int leg_poz[] = {gamma, beta, alpha};
   if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
-
+  /*
   Serial.println(String(leg_poz[0]) + "             1");
   Serial.println(String(leg_poz[1]) + "             2");
   Serial.println(String(leg_poz[2]) + "             3");
+  */
 
-  for(int i = 0; i < 3; i++) myservos[leg_num * 3 + i].write(leg_poz[i]);
+  if(leg_num < 3){
+    for(int i = 0; i < 3; i++){
+      Servo_right[leg_num * 3 + i].write(leg_poz[i]);
+      Servo_right[leg_num * 3 + i].tick();
+    } 
+  }else{
+    for(int i = 0; i < 3; i++){
+      Servo_left[leg_num * 3 + i].write(leg_poz[i]);
+      Servo_left[leg_num * 3 + i].tick();
+    } 
+
+  }
+
 
   //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног
 }

@@ -1,6 +1,10 @@
-#include "ServoDriverSmooth.h"
-ServoDriverSmooth Servo_right[9](0x41, 180);
-ServoDriverSmooth Servo_left[9](0x40, 180);
+#include <Wire.h>                       // Подключаем библиотеку Wire
+#include <Adafruit_PWMServoDriver.h>    // Подключаем библиотеку Adafruit_PWMServoDriver
+
+Adafruit_PWMServoDriver servo_left = Adafruit_PWMServoDriver(0x41);  // Установка адреса I2C 0x40
+Adafruit_PWMServoDriver servo_right = Adafruit_PWMServoDriver(0x40); // Установка адреса I2C 0x40
+#define SERVOMIN  150                   // Минимальная длительность импульса для сервопривода
+#define SERVOMAX  600                   // Максимальная длина импульса для сервопривода
 
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
@@ -28,13 +32,16 @@ float positions[6][4]{
 
 void setup() {
   Serial.begin(9600);
-  for(int i = 0; i < 9; i++) Servo_right[i].attach(i);
-  for(int i = 0; i < 9; i++) Servo_left[i].attach(i);
-
+  servo_left.begin();                   // Инициализация
+  servo_left.setPWMFreq(60);            // Частота следования импульсов 60 Гц
+  delay(10);                            // Пауза
+  servo_right.begin();                  // Инициализация
+  servo_right.setPWMFreq(60);           // Частота следования импульсов 60 Гц
+  delay(10);                            // Пауза
 }
 
 void loop() {  
-  rotation(80, 30);
+  angle_moving(90, 80, 30);
   hexapod(1000, -40, -50);
 }
 
@@ -129,23 +136,20 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
 
   int leg_poz[] = {gamma, beta, alpha};
   if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
-  /*
+  
   Serial.println(String(leg_poz[0]) + "             1");
   Serial.println(String(leg_poz[1]) + "             2");
   Serial.println(String(leg_poz[2]) + "             3");
-  */
+  
 
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      Servo_right[leg_num * 3 + i].write(leg_poz[i]);
-      Servo_right[leg_num * 3 + i].tick();
+      servo_right.setPWM(leg_num * 3 + i, 0, map(leg_poz[i], 0, 180, SERVOMIN, SERVOMAX));
     } 
   }else{
     for(int i = 0; i < 3; i++){
-      Servo_left[leg_num * 3 + i].write(leg_poz[i]);
-      Servo_left[leg_num * 3 + i].tick();
+      servo_left.setPWM((leg_num - 3) * 3 + i, 0, map(leg_poz[i], 0, 180, SERVOMIN, SERVOMAX));
     } 
-
   }
 
 

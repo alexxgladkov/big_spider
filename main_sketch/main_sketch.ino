@@ -4,7 +4,7 @@
 Adafruit_PWMServoDriver servo_left = Adafruit_PWMServoDriver(0x41);  // Установка адреса I2C 0x40
 Adafruit_PWMServoDriver servo_right = Adafruit_PWMServoDriver(0x40); // Установка адреса I2C 0x40
 #define SERVOMIN  150                   // Минимальная длительность импульса для сервопривода
-#define SERVOMAX  600                   // Максимальная длина импульса для сервопривода
+#define SERVOMAX  650                   // Максимальная длина импульса для сервопривода
 
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
@@ -41,8 +41,8 @@ void setup() {
 }
 
 void loop() {  
-  angle_moving(90, 80, 30);
-  hexapod(1000, -40, -50);
+  angle_moving(90, 100, 40);
+  hexapod(150, -25, -65);
 }
 
 void rotation(int angle_dist, int l_step){
@@ -134,8 +134,8 @@ void move_to(float x, float y, float z, int leg_num){ //координаты н�
   beta = 180 - beta_ - omega - q; // вычисляются значения серво 2 и 3
   alpha = alpha_ - q;
 
-  int leg_poz[] = {gamma, beta, alpha};
-  if(leg_num > 2) leg_poz[0] = 180 - leg_poz[0];
+  int leg_poz[] = {gamma, 180 - beta, alpha};
+  if(leg_num < 3) leg_poz[0] = 180 - leg_poz[0];
   
   Serial.println(String(leg_poz[0]) + "             1");
   Serial.println(String(leg_poz[1]) + "             2");

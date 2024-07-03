@@ -15,7 +15,7 @@ Adafruit_PWMServoDriver servo_right = Adafruit_PWMServoDriver(0x40); // Уста
 #define x_lenth1 77.5
 #define x_lenth2 57.5
 
-int corrections[] = {45, 0, -45, 45, 0, -45};
+int corrections[] = {-45, 0, 45, -45, 0, 45};
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
@@ -43,7 +43,8 @@ void setup() {
 }
 
 void loop() {  
-  move_to(100, 100, 0, 0);
+  angle_moving(90, 100, 30);
+  hexapod(250, -30, -50);
 }
 
 void rotation(int angle_dist, int l_step){
@@ -117,6 +118,7 @@ void move_to(int x, int y, int z, int leg_num){
   float l = sqrt(sq(x) + sq(15 - y));
   float gamma = degrees(acos((sq(15) + sq(q) - sq(l)) / (30 * q)));
   if(x < 0) gamma = 360 - gamma;
+  if(leg_num < 3) gamma = 180 - gamma;
   int S1 = gamma + corrections[leg_num];
   // -----------2-----------
   // смотри тетрадь стр. 17 - 18

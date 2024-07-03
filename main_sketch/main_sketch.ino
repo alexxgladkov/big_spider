@@ -9,11 +9,13 @@ Adafruit_PWMServoDriver servo_right = Adafruit_PWMServoDriver(0x40); // Уста
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
-#define q 17.5 // угол между осью плеча B перпендикуляром к A
+#define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
 #define y_lenth1 90
 #define x_lenth1 77.5
 #define x_lenth2 57.5
+
+int corrections[] = {45, 0, -45, 45, 0, -45};
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
@@ -41,8 +43,7 @@ void setup() {
 }
 
 void loop() {  
-  angle_moving(90, 100, 40);
-  hexapod(150, -25, -65);
+  move_to(100, 100, 0, 0);
 }
 
 void rotation(int angle_dist, int l_step){
@@ -108,52 +109,39 @@ void hexapod(int period, int l_up, int l_down){
   }
 }
 
-void move_to(float x, float y, float z, int leg_num){ //координаты ноги в пространстве xyz, и номер серво значение которого он вернет
-  // на виде сверху найдем три точки: начало координат (0,0), точка ноги (x, y), доп точка (0, 5)
-  // обозначим стороны этого треугольника за e, f, g. f против искомого угла
-  int e = 5;                             // сторона между началом координат и доп точкой
-  float g = sqrt(sq(x) + sq(y));         // по факту x - 0 и y - 0 но эт не важно
-  float f = sqrt(sq(x - 0) + sq(y - 5)); //ищем длинну g и f
-  float gamma; 
-  if(x == y) gamma = 45;
-  else  gamma = degrees(acos((sq(e) + sq(g) - sq(f)) / (2 * e * g)));//угол поворота ноги в суставе 1
-  // Здесь мы определили угол поворота первого сустава, дальше определим для второго. 
-  // g посути мы теперь используем как х для вида сбоку ноги, а z как y, но использовать мы будем g и z 
-  
-  float d;      // l от первого сустава до кончика ноги
-  float alpha_; // угол треугольника против стороны c
-  float alpha;  // угол треугольника против стороны c
-  float beta_;  // угол между перпендикуляром к Ох и отр. d
-  float beta;   //угол поворота servo2 (вторая серва на ноге)
-  float omega;  // угол между d и b
-
-  d = sqrt(sq(g - a) + sq(z));                                           //находим длинну отрезка между координатами сустава 2 и кончика ноги
-  alpha_ = degrees(acos((sq(b) + sq(c) - sq(d)) / (2 * b * c)));         // alpha это угол между 2 и третьей фалангой
-  beta_ = degrees(acos((sq(d) + sq(z) - sq(g - a)) / (2 * d * abs(z)))); // beta  это угол между d и z
-  omega = degrees(acos((sq(b) + sq(d) - sq(c)) / (2 * b * d)));
-  beta = 180 - beta_ - omega - q; // вычисляются значения серво 2 и 3
-  alpha = alpha_ - q;
-
-  int leg_poz[] = {gamma, 180 - beta, alpha};
-  if(leg_num < 3) leg_poz[0] = 180 - leg_poz[0];
-  
-  Serial.println(String(leg_poz[0]) + "             1");
-  Serial.println(String(leg_poz[1]) + "             2");
-  Serial.println(String(leg_poz[2]) + "             3");
-  
+void move_to(int x, int y, int z, int leg_num){ 
+  //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
+  // -----------1-----------
+  // смотри тетрадь стр. 17
+  float q = sqrt(sq(x) + sq(y));
+  float l = sqrt(sq(x) + sq(15 - y));
+  float gamma = degrees(acos((sq(15) + sq(q) - sq(l)) / (30 * q)));
+  if(x < 0) gamma = 360 - gamma;
+  int S1 = gamma + corrections[leg_num];
+  // -----------2-----------
+  // смотри тетрадь стр. 17 - 18
+  float d = sqrt(sq(q - a) + sq(z));
+  int h = 15;
+  float j = sqrt(sq(q - a) + sq(15 - z));
+  float beta = degrees(acos((sq(h) + sq(d) - sq(j)) / (2 * h * d)));
+  if(q < a) beta = 360 - beta;
+  float omega = degrees(acos((sq(b) + sq(d) - sq(c)) / (2 * b * d)));
+  int S2 = beta - (omega + const_angle);
+  S2 = 180 - S2;
+  // -----------3-----------
+  // смотри тетрадь стр. 18 - 19
+  float alpha = degrees(acos((sq(b) + sq(c) - sq(d)) / (2 * b * c)));
+  int S3 = alpha - const_angle;
+  int degrees[] = {S1, S2, S3};
 
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      servo_right.setPWM(leg_num * 3 + i, 0, map(leg_poz[i], 0, 180, SERVOMIN, SERVOMAX));
-    } 
+      servo_right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+      Serial.println(S2);
+    }
   }else{
-    for(int i = 0; i < 3; i++){
-      servo_left.setPWM((leg_num - 3) * 3 + i, 0, map(leg_poz[i], 0, 180, SERVOMIN, SERVOMAX));
-    } 
+    for(int i = 0; i < 3; i++) servo_left.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
   }
-
-
-  //у нас есть три угла, тут надо записать их в сервы и по сути одной этой функцией мы выполняем все движения ног
 }
 
 void calculate(float z, float x){

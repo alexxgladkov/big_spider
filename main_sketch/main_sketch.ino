@@ -1,21 +1,17 @@
-#include <Wire.h>                       // Подключаем библиотеку Wire
 #include <Adafruit_PWMServoDriver.h>    // Подключаем библиотеку Adafruit_PWMServoDriver
 
-Adafruit_PWMServoDriver servo_left = Adafruit_PWMServoDriver(0x41);  // Установка адреса I2C 0x40
-Adafruit_PWMServoDriver servo_right = Adafruit_PWMServoDriver(0x40); // Установка адреса I2C 0x40
-#define SERVOMIN  150                   // Минимальная длительность импульса для сервопривода
-#define SERVOMAX  650                   // Максимальная длина импульса для сервопривода
+Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);    //Create an object of board 1
+Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an object of board 2 (A0 Address Jumper)
+#define SERVOMIN  85                // Минимальная длительность импульса для сервопривода
+#define SERVOMAX  500                  // Максимальная длина импульса для сервопривода
 
 #define a 36   // константа:  плеча А
 #define b 46   // константа: l плеча В
 #define c 85   // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
-#define y_lenth1 90
-#define x_lenth1 77.5
-#define x_lenth2 57.5
-
 int corrections[] = {-45, 0, 45, -45, 0, 45};
+//номера ног 0 .... 5
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
@@ -34,17 +30,16 @@ float positions[6][4]{
 
 void setup() {
   Serial.begin(9600);
-  servo_left.begin();                   // Инициализация
-  servo_left.setPWMFreq(60);            // Частота следования импульсов 60 Гц
-  delay(10);                            // Пауза
-  servo_right.begin();                  // Инициализация
-  servo_right.setPWMFreq(60);           // Частота следования импульсов 60 Гц
-  delay(10);                            // Пауза
+  right.begin();             //Start each board
+  left.begin();
+  right.setOscillatorFrequency(27000000);    //Set the PWM oscillator frequency, used for fine calibration
+  left.setOscillatorFrequency(27000000);
+  right.setPWMFreq(50);          //Set the servo operating frequency
+  left.setPWMFreq(50);
 }
 
 void loop() {  
-  angle_moving(90, 100, 30);
-  hexapod(250, -30, -50);
+
 }
 
 void rotation(int angle_dist, int l_step){
@@ -91,19 +86,19 @@ void hexapod(int period, int l_up, int l_down){
   }
   switch(counter){
     case 1:
-      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i); 
       for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
       break;
     case 2:
-      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
       for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
       break;
     case 3:
-      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
       for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
       break;
     case 4:
-      for(int i = 0; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
       for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
       counter = 0;
       break;
@@ -138,11 +133,17 @@ void move_to(int x, int y, int z, int leg_num){
 
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      servo_right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
-      Serial.println(S2);
+      
+      right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+      Serial.println(degrees[i]);
     }
-  }else{
-    for(int i = 0; i < 3; i++) servo_left.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+  }
+  if(leg_num >= 3){
+    degrees[1] = 180 - degrees[1];
+    degrees[2] = 180 - degrees[2];
+    for(int i = 0; i < 3; i++){
+      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+    }
   }
 }
 
@@ -159,13 +160,4 @@ void calculate(float z, float x){
   g_max = sqrt(17161 - sq(z)) + 36;
   //посчитали ограничения g
   float y_max = sqrt(sq(g_max) - sq(x));
-  Serial.print("x  ");
-  Serial.print(g_min);
-  Serial.print(" / ");
-  Serial.print(g_max);
-  Serial.print("   y  ");
-  Serial.print(y_max);
-  Serial.print(" / ");
-  Serial.print(-y_max);
-  Serial.println("");
 }

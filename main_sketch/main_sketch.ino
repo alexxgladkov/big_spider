@@ -2,7 +2,7 @@
 
 Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);    //Create an object of board 1
 Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an object of board 2 (A0 Address Jumper)
-#define SERVOMIN  85                // Минимальная длительность импульса для сервопривода
+#define SERVOMIN  90                // Минимальная длительность импульса для сервопривода
 #define SERVOMAX  500                  // Максимальная длина импульса для сервопривода
 
 #define a 36   // константа:  плеча А
@@ -10,7 +10,7 @@ Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an obj
 #define c 85   // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
-int corrections[] = {-45, 0, 45, -45, 0, 45};
+int corrections[] = {45, 0, -45, 45, 0, -45};
 //номера ног 0 .... 5
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
@@ -39,7 +39,8 @@ void setup() {
 }
 
 void loop() {  
-
+  angle_moving(90, 60, 15);
+  hexapod(500, -75, -60);
 }
 
 void rotation(int angle_dist, int l_step){
@@ -113,7 +114,7 @@ void move_to(int x, int y, int z, int leg_num){
   float l = sqrt(sq(x) + sq(15 - y));
   float gamma = degrees(acos((sq(15) + sq(q) - sq(l)) / (30 * q)));
   if(x < 0) gamma = 360 - gamma;
-  if(leg_num < 3) gamma = 180 - gamma;
+  gamma = 180 - gamma;
   int S1 = gamma + corrections[leg_num];
   // -----------2-----------
   // смотри тетрадь стр. 17 - 18
@@ -131,18 +132,16 @@ void move_to(int x, int y, int z, int leg_num){
   int S3 = alpha - const_angle;
   int degrees[] = {S1, S2, S3};
 
+  //------------------------------------------------------------------------------------
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      
       right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
       Serial.println(degrees[i]);
     }
   }
   if(leg_num >= 3){
-    degrees[1] = 180 - degrees[1];
-    degrees[2] = 180 - degrees[2];
     for(int i = 0; i < 3; i++){
-      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
     }
   }
 }

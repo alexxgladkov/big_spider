@@ -10,13 +10,14 @@ Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an obj
 #define c 85   // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
-int corrections[] = {45, 0, -45, 45, 0, -45};
+int corrections[] = {-45, 0, 45, 45, 0, -45};
 //номера ног 0 .... 5
 
 // Это все константы механики. Они не меняются, обусловлены конструкцией.
 // ИЗ КАДА НЕ ТРОГАЙ 
 
 int counter;
+int counter1 = 0;
 uint32_t tmr1 = millis();
 
 float positions[6][4]{
@@ -40,7 +41,7 @@ void setup() {
 
 void loop() {  
   angle_moving(90, 60, 15);
-  hexapod(500, -75, -60);
+  quadropod2(250, -50, -65);
 }
 
 void rotation(int angle_dist, int l_step){
@@ -64,7 +65,7 @@ void rotation(int angle_dist, int l_step){
     positions[i][2] = X2;
     positions[i][3] = Y2;
   }
-} 
+}
 
 void angle_moving(float move_angle, int l_dist, int l_step){
   //нужно посчитать координаты х у для этого рассмотрим треугольник с углом move_angle 
@@ -106,6 +107,64 @@ void hexapod(int period, int l_up, int l_down){
   }
 }
 
+void quadropod(int period, int up, int down){
+  int up_down[6][6]{ // down - 0; up -1
+    {down, down, down, down, up, up}, //1
+    {up, up, down, down, down, down}, //2
+    {down, down, up, up, down, down}, //3    
+    {down, down, down, down, up, up}, //1
+    {down, down, up, up, down, down}, //3
+    {up, up, down, down, down, down}, //2
+  };
+
+  int pos_num[6][6]{ // st - 0, mid - 1, fin - 2
+    {0, 1, 1, 2, 2, 0}, //1
+    {2, 0, 0, 1, 1, 2}, //2
+    {1, 2, 2, 0, 0, 1}, //3    
+    {0, 1, 1, 2, 2, 0}, //1
+    {1, 2, 2, 0, 0, 1}, //3
+    {2, 0, 0, 1, 1, 2}, //2
+
+  };
+
+  if(millis() - tmr1 >= period){
+    tmr1 = millis();
+    counter += 1;
+    if(counter == 6) counter = 0;
+    Serial.println("tick");
+  }
+  int the_pos[2][6];
+
+  for(int i = 0; i < 6; i++){
+    if(pos_num[i][counter] == 0){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+    }else if(pos_num[i][counter] == 1){
+      the_pos[0][i] = middle(positions[i][0], positions[i][2]);
+      the_pos[1][i] = middle(positions[i][1], positions[i][3]);
+    }else if(pos_num[i][counter] == 2){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+    }
+  }
+
+  for(int i = 0; i < 6; i++){
+    move_to(the_pos[0][i], the_pos[1][i], up_down[i][counter], i);
+  }
+}
+
+int middle(int start, int stop){
+  int result = (start + stop) / 2;
+  return result;
+}
+
+int count(int start, int finish, int steps, int step_num){
+  int l = finish - start; 
+  float part = l / steps;
+  int result = start + part * step_num;
+  return result;
+}
+
 void move_to(int x, int y, int z, int leg_num){ 
   //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
   // -----------1-----------
@@ -136,7 +195,6 @@ void move_to(int x, int y, int z, int leg_num){
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
       right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
-      Serial.println(degrees[i]);
     }
   }
   if(leg_num >= 3){
@@ -144,19 +202,4 @@ void move_to(int x, int y, int z, int leg_num){
       left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
     }
   }
-}
-
-void calculate(float z, float x){
-  float g_min;
-  float g_max;
-  if(z >= 0){
-    g_min = sqrt(sq(c) - sq(43.7 - z)) + 50;
-  }else if(-z >= b){
-    g_min = 15;
-  }else{
-    g_min = sqrt(sq(43) - sq(z)) + 36;
-  }
-  g_max = sqrt(17161 - sq(z)) + 36;
-  //посчитали ограничения g
-  float y_max = sqrt(sq(g_max) - sq(x));
 }

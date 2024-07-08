@@ -158,13 +158,6 @@ int middle(int start, int stop){
   return result;
 }
 
-int count(int start, int finish, int steps, int step_num){
-  int l = finish - start; 
-  float part = l / steps;
-  int result = start + part * step_num;
-  return result;
-}
-
 void move_to(int x, int y, int z, int leg_num){ 
   //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
   // -----------1-----------

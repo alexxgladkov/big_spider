@@ -101,13 +101,14 @@ void loop() {
   ep_tick();
   hub.tick();
 
-  if(right_h) resim = "r";
-  if(left_h) resim = "l";
-  if(front) resim = "f";
-  if(stop) resim = "s";
+  if(right_h) resim = "r"; 
+  if(left_h) resim = "l"; 
+  if(front) resim = "f"; 
+  if(stop) resim = "s"; moving_res = "s";
 
   if(resim == "r"){
     rotation(distation, step_distation, 0);
+
   }else if(resim == "l"){
     rotation(distation, step_distation, 1);
   }else if(resim == "f"){
@@ -124,10 +125,12 @@ void loop() {
   if(hex) moving_res = "h";
   if(quad) moving_res = "q";
 
-  if(resim == "h"){
-    hexapod(timing, up_dist, down_dist);
-  }else if(resim == "q"){
-    quadropod(timing, up_dist, down_dist);
+  if(moving_res == "h"){
+    Serial.println("H");
+    hexapod(timing, -up_dist, -down_dist);
+  }else if(moving_res == "q"){
+    Serial.println("Q");
+    quadropod(timing, -up_dist, -down_dist);
   }
 }
 

@@ -104,7 +104,7 @@ void loop() {
   if(right_h) resim = "r"; 
   if(left_h) resim = "l"; 
   if(front) resim = "f"; 
-  if(stop) resim = "s"; moving_res = "s";
+  if(stop) resim = "s";
 
   if(resim == "r"){
     rotation(distation, step_distation, 0);
@@ -126,10 +126,8 @@ void loop() {
   if(quad) moving_res = "q";
 
   if(moving_res == "h"){
-    Serial.println("H");
     hexapod(timing, -up_dist, -down_dist);
   }else if(moving_res == "q"){
-    Serial.println("Q");
     quadropod(timing, -up_dist, -down_dist);
   }
 }
@@ -282,7 +280,7 @@ void move_to(int x, int y, int z, int leg_num){
   int degrees[] = {S1, S2, S3};
 
   //------------------------------------------------------------------------------------
-  if(leg_num < 3){
+    if(leg_num < 3){
     for(int i = 0; i < 3; i++){
       right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
     }
@@ -292,6 +290,12 @@ void move_to(int x, int y, int z, int leg_num){
       left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
     }
   }
+
+  // возьмем период напрямую с слайдера 
+  // таймер это глобальная переменная 
+  // таймер - миллис меньше 10 запрашиваем getPWM  
+  // вычисляем разницу углов и делим ее на оставшееся время 
+  // по таймеру двигаем сервы на ^
 }
 
 void ep_tick(){

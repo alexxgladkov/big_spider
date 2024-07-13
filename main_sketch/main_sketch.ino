@@ -22,6 +22,7 @@ int corrections[] = {-45, 0, 45, 45, 0, -45};
 
 gh::Flag right_h, front, left_h, stop, read_e, write_e, hex, quad;
 uint16_t up_dist, down_dist, distation, step_distation, pos;
+
 String resim = "";
 String moving_res = "";
 uint16_t timing = 1000;
@@ -177,7 +178,8 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 }
 
 void hexapod(int period, int l_up, int l_down){
-  if(millis() - tmr1 >= period){
+  int time_diff = millis() - tmr1;
+  if(time_diff >= period){
     tmr1 = millis();
     counter += 1;
   }
@@ -200,6 +202,7 @@ void hexapod(int period, int l_up, int l_down){
       counter = 0;
       break;
   }
+  
 }
 
 void quadropod(int period, int up, int down){
@@ -226,8 +229,8 @@ void quadropod(int period, int up, int down){
     tmr1 = millis();
     counter += 1;
     if(counter == 6) counter = 0;
-    Serial.println("tick");
   }
+
   int the_pos[2][6];
 
   for(int i = 0; i < 6; i++){
@@ -280,22 +283,13 @@ void move_to(int x, int y, int z, int leg_num){
   int degrees[] = {S1, S2, S3};
 
   //------------------------------------------------------------------------------------
-    if(leg_num < 3){
+  if(leg_num < 3){
     for(int i = 0; i < 3; i++){
       right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
     }
   }
   if(leg_num >= 3){
-    for(int i = 0; i < 3; i++){
-      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
-    }
   }
-
-  // возьмем период напрямую с слайдера 
-  // таймер это глобальная переменная 
-  // таймер - миллис меньше 10 запрашиваем getPWM  
-  // вычисляем разницу углов и делим ее на оставшееся время 
-  // по таймеру двигаем сервы на ^
 }
 
 void ep_tick(){

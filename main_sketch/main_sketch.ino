@@ -4,32 +4,35 @@
 
 GyverHub hub("MyDevices", "ESP8266", "");  // имя сети, имя устройства, иконка
 
-Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);    //Create an object of board 1
-Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an object of board 2 (A0 Address Jumper)
-#define SERVOMIN  90                // Минимальная длительность импульса для сервопривода
-#define SERVOMAX  500                  // Максимальная длина импульса для сервопривода
+Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);
+Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);
+//-----------------------------------------------------------------------------------------
+// библиотеки
 
-#define a_const 36   // константа:  плеча А
-#define b_const 46   // константа: l плеча В
-#define c_const 85   // константа: l плеча C
+#define SERVOMIN  90                // Минимальная длительность импульса для сервопривода
+#define SERVOMAX  500               // Максимальная длина импульса для сервопривода
+
+#define a_const 36       // константа:  плеча А
+#define b_const 46       // константа: l плеча В
+#define c_const 85       // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
-int corrections[] = {-45, 0, 45, 45, 0, -45};
-//номера ног 0 .... 5
-
-// Это все константы механики. Они не меняются, обусловлены конструкцией.
-// ИЗ КАДА НЕ ТРОГАЙ 
+int corrections[] = {-45, 0, 45, 45, 0, -45}; // поправки для углов серво первого плеча ног
+//-----------------------------------------------------------------------------------------
+// Это все константы механики. Они не меняются, обусловлены конструкцией
 
 gh::Flag right_h, front, left_h, stop, read_e, write_e, hex, quad;
-uint16_t up_dist, down_dist, distation, step_distation, pos;
-
+uint16_t up_dist, down_dist, distation, step_distation, pos;      
 String resim = "";
 String moving_res = "";
 uint16_t timing = 1000;
+//-----------------------------------------------------------------------------------------
+// переменные для управления со смартфона
 
 int counter;
-int counter1 = 0;
 uint32_t tmr1 = millis();
+//-----------------------------------------------------------------------------------------
+// таймеры для работы прошивки
 
 float positions[6][4]{
   {0, 0, 0, 0}, // нога 0 (х, у) нач (х, у) кон
@@ -39,6 +42,14 @@ float positions[6][4]{
   {0, 0, 0, 0},
   {0, 0, 0, 0}, // нога 5 (х, у) нач (х, у) кон
 };
+
+float last_angle[3][6] =  {
+  {0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0},
+};
+//-----------------------------------------------------------------------------------------
+// массивы для хранения положений ног
 
 void build(gh::Builder& b) {
   b.Text("режим хотьбы").rows(1);
@@ -70,17 +81,19 @@ void build(gh::Builder& b) {
   b.Button().label("считать").attach(&read_e);  
   b.endRow();
 }
+//-----------------------------------------------------------------------------------------
+// конструируем интерфейс
 
 void setup() {
   Serial.begin(9600);
-  //-----------------------------------------
-  right.begin();             //Start each board
+  //-----------------Serial------------------
+  right.begin();             
   left.begin();
   right.setOscillatorFrequency(27000000);    
   left.setOscillatorFrequency(27000000);
   right.setPWMFreq(50);         
   left.setPWMFreq(50);
-  //-----------------------------------------
+  //------------------Servo------------------
   WiFi.mode(WIFI_STA);
   WiFi.begin("Penibord_2G", "StrA97!B16");
   while (WiFi.status() != WL_CONNECTED) {
@@ -89,13 +102,13 @@ void setup() {
   }
   hub.onBuild(build); // подключаем билдер
   hub.begin();        // запускаем систему
-  //-----------------------------------------
+  //---------------Приложение----------------
   EEPROM.begin(1000);   // для esp8266/esp32
-
   up_dist = EEPROM.read(10);
   down_dist = EEPROM.read(12);
   distation = EEPROM.read(14);
   step_distation = EEPROM.read(16);
+  //------------------память-----------------
 }
 
 void loop() {  
@@ -177,7 +190,7 @@ void angle_moving(float move_angle, int l_dist, int l_step){
   }
 }
 
-void hexapod(int period, int l_up, int l_down){
+void hexapod(int period, int up, int down){
   int time_diff = millis() - tmr1;
   if(time_diff >= period){
     tmr1 = millis();
@@ -185,20 +198,20 @@ void hexapod(int period, int l_up, int l_down){
   }
   switch(counter){
     case 1:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i); 
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], down, i); 
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], up, i);
       break;
     case 2:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], down, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], up, i);
       break;
     case 3:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], up, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], down, i);
       break;
     case 4:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
+      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], up, i);
+      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], down, i);
       counter = 0;
       break;
   }
@@ -238,9 +251,9 @@ void quadropod(int period, int up, int down){
       the_pos[0][i] = positions[i][0];
       the_pos[1][i] = positions[i][1];
     }else if(pos_num[i][counter] == 1){
-      the_pos[0][i] = middle(positions[i][0], positions[i][2]);
-      the_pos[1][i] = middle(positions[i][1], positions[i][3]);
-    }else if(pos_num[i][counter] == 2){
+      the_pos[0][i] = (positions[i][0] + positions[i][2])) / 2;
+      the_pos[1][i] = (positions[i][1] + positions[i][3])) / 2;
+    }else if(pos_num[i][counter] == 2){ 
       the_pos[0][i] = positions[i][2];
       the_pos[1][i] = positions[i][3];
     }
@@ -249,11 +262,6 @@ void quadropod(int period, int up, int down){
   for(int i = 0; i < 6; i++){
     move_to(the_pos[0][i], the_pos[1][i], up_down[i][counter], i);
   }
-}
-
-int middle(int start, int stop){
-  int result = (start + stop) / 2;
-  return result;
 }
 
 void move_to(int x, int y, int z, int leg_num){ 
@@ -286,9 +294,14 @@ void move_to(int x, int y, int z, int leg_num){
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
       right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+      last_pos[i][leg_num] = degrees[i];
     }
   }
   if(leg_num >= 3){
+    for(int i = 0; i < 3; i++){
+      left.setPWM(leg_num * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
+      last_pos[i][leg_num] = degrees[i];
+    }
   }
 }
 

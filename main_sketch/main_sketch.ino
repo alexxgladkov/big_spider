@@ -29,8 +29,11 @@ uint16_t timing = 1000;
 //-----------------------------------------------------------------------------------------
 // переменные для управления со смартфона
 
+int per = 50;
+
 int counter;
 uint32_t tmr1 = millis();
+uint32_t tmr2 = millis();
 //-----------------------------------------------------------------------------------------
 // таймеры для работы прошивки
 
@@ -44,8 +47,8 @@ float positions[6][4]{
 };
 
 float last_angle[3][6] =  {
-  {0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0},
+  {90, 90, 90, 90, 90, 90},
+  {180, 180, 180, 180, 180, 180},
   {0, 0, 0, 0, 0, 0},
 };
 //-----------------------------------------------------------------------------------------
@@ -80,6 +83,7 @@ void build(gh::Builder& b) {
   b.Button().label("записать").attach(&write_e);  
   b.Button().label("считать").attach(&read_e);  
   b.endRow();
+  b.Input(&per);
 }
 //-----------------------------------------------------------------------------------------
 // конструируем интерфейс
@@ -191,8 +195,7 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 }
 
 void hexapod(int period, int up, int down){
-  int time_diff = millis() - tmr1;
-  if(time_diff >= period){
+  if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1;
   }
@@ -251,8 +254,8 @@ void quadropod(int period, int up, int down){
       the_pos[0][i] = positions[i][0];
       the_pos[1][i] = positions[i][1];
     }else if(pos_num[i][counter] == 1){
-      the_pos[0][i] = (positions[i][0] + positions[i][2])) / 2;
-      the_pos[1][i] = (positions[i][1] + positions[i][3])) / 2;
+      the_pos[0][i] = (positions[i][0] + positions[i][2]) / 2;
+      the_pos[1][i] = (positions[i][1] + positions[i][3]) / 2;
     }else if(pos_num[i][counter] == 2){ 
       the_pos[0][i] = positions[i][2];
       the_pos[1][i] = positions[i][3];
@@ -291,16 +294,20 @@ void move_to(int x, int y, int z, int leg_num){
   int degrees[] = {S1, S2, S3};
 
   //------------------------------------------------------------------------------------
+  
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
-      last_pos[i][leg_num] = degrees[i];
+      if(millis() - tmr2 >= per){
+        if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
+          int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
+          last_angle[i][leg_num] -= edenitsa;
+          right.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
+        }
+      }
     }
   }
   if(leg_num >= 3){
     for(int i = 0; i < 3; i++){
-      left.setPWM(leg_num * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
-      last_pos[i][leg_num] = degrees[i];
     }
   }
 }

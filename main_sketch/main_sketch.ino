@@ -34,6 +34,7 @@ int per = 50;
 int counter;
 uint32_t tmr1 = millis();
 uint32_t tmr2 = millis();
+uint32_t tmr3 = millis();
 //-----------------------------------------------------------------------------------------
 // таймеры для работы прошивки
 
@@ -188,40 +189,54 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 
   for(int i = 0; i < 6; i++){             // X Y здесь записаны позиции для движения ног
     positions[i][0] = l_dist - l_diff;
-    positions[i][1] = l_perp;
+    positions[i][1] = l_perp;     
     positions[i][2] = l_dist + l_diff;
     positions[i][3] = -l_perp;
   }
 }
 
 void hexapod(int period, int up, int down){
+  int the_pos[2][6];
+  int up_down[6][6]{ // down - 0; up -1
+    {down, down, down, up, up, down}, //0
+    {up, up, down, down, down, down}, //1
+    {down, down, down, up, up, down}, //2   
+    {up, up, down, down, down, down}, //3
+    {down, down, down, up, up, down}, //4
+    {up, up, down, down, down, down}, //5
+  };
+  int pos_num[6][6]{ // st - 1, fin - 2
+    {1, 2, 2, 2, 1, 1}, //0
+    {2, 1, 1, 1, 2, 2}, //1
+    {1, 2, 2, 2, 1, 1}, //2    
+    {2, 1, 1, 1, 2, 2}, //3
+    {1, 2, 2, 2, 1, 1}, //4
+    {2, 1, 1, 1, 2, 2}, //5
+  };
+
   if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1;
+    if(counter == 6) counter = 0;
   }
-  switch(counter){
-    case 1:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], down, i); 
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], up, i);
-      break;
-    case 2:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], down, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], up, i);
-      break;
-    case 3:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], down, i);
-      break;
-    case 4:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], down, i);
-      counter = 0;
-      break;
+
+  for(int i = 0; i < 6; i++){
+    if(pos_num[i][counter] == 1){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+    }else if(pos_num[i][counter] == 2){ 
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+    }
   }
-  
+
+  for(int i = 0; i < 6; i++){
+    move_to(the_pos[0][i], the_pos[1][i], up_down[i][counter], i);
+  }
 }
 
 void quadropod(int period, int up, int down){
+  int the_pos[2][6];
   int up_down[6][6]{ // down - 0; up -1
     {down, down, down, down, up, up}, //1
     {up, up, down, down, down, down}, //2
@@ -246,8 +261,6 @@ void quadropod(int period, int up, int down){
     counter += 1;
     if(counter == 6) counter = 0;
   }
-
-  int the_pos[2][6];
 
   for(int i = 0; i < 6; i++){
     if(pos_num[i][counter] == 0){
@@ -297,17 +310,23 @@ void move_to(int x, int y, int z, int leg_num){
   
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      if(millis() - tmr2 >= per){
+      if(millis() - tmr3 >= per){
         if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
           int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
           last_angle[i][leg_num] -= edenitsa;
-          right.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
+          left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 180, 0, SERVOMIN, SERVOMAX));
         }
       }
     }
-  }
-  if(leg_num >= 3){
+  }if(leg_num > 3){
     for(int i = 0; i < 3; i++){
+      if(millis() - tmr3 >= per){
+        if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
+          int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
+          last_angle[i][leg_num] -= edenitsa;
+          left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
+        }
+      }
     }
   }
 }

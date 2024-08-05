@@ -148,7 +148,7 @@ void loop() {
   if(moving_res == "h"){
     hexapod(timing, -up_dist, -down_dist);
   }else if(moving_res == "q"){
-    quadropod(timing, -up_dist, -down_dist);
+    quadropod1(timing, -up_dist, -down_dist);
   }
 }
 
@@ -295,12 +295,13 @@ void quadropod1(int period, int up, int down){
     tmr1 = millis();
     counter2 += 1;
     if(counter2 == 3){
-      counter2 = 0; 
       counter += 1;
+      counter2 = 0; 
+      if(counter == 3){
+        counter = 0;
+      } 
     }
-    if(counter == 3) counter == 0;
   }
-
   for(int i = 0; i < 6; i++){
     if(pos_quad[i][counter] == 0){
       the_pos[0][i] = positions[i][2];
@@ -315,7 +316,7 @@ void quadropod1(int period, int up, int down){
         the_pos[0][i] = positions[i][0];
         the_pos[1][i] = positions[i][1];
         the_pos[2][i] = up;
-      }else(counter2 == 2){
+      }else if(counter2 == 2){
         the_pos[0][i] = positions[i][0];
         the_pos[1][i] = positions[i][1];
         the_pos[2][i] = down;
@@ -360,7 +361,7 @@ void move_to(int x, int y, int z, int leg_num){
 
   //------------------------------------------------------------------------------------
   
-  if(leg_num < 3){
+  if(leg_num == 4){
     for(int i = 0; i < 3; i++){
       if(millis() - tmr3 >= per){
         if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
@@ -370,7 +371,7 @@ void move_to(int x, int y, int z, int leg_num){
         }
       }
     }
-  }if(leg_num > 3){
+  }/*if(leg_num > 3){
     for(int i = 0; i < 3; i++){
       if(millis() - tmr3 >= per){
         if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
@@ -380,7 +381,7 @@ void move_to(int x, int y, int z, int leg_num){
         }
       }
     }
-  }
+  }*/
 }
 
 void ep_tick(){

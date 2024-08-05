@@ -31,7 +31,8 @@ uint16_t timing = 1000;
 
 int per = 50;
 
-int counter;
+int counter = 0;
+int counter2 = 0;
 uint32_t tmr1 = millis();
 uint32_t tmr2 = millis();
 uint32_t tmr3 = millis();
@@ -277,6 +278,57 @@ void quadropod(int period, int up, int down){
 
   for(int i = 0; i < 6; i++){
     move_to(the_pos[0][i], the_pos[1][i], up_down[i][counter], i);
+  }
+}
+
+void quadropod1(int period, int up, int down){
+  int the_pos[3][6];// 3 координаты 6 ног
+  float pos_quad[6][3] = {
+    {0.5, 0, 1},
+    {1, 0.5, 0},
+    {0, 1, 0.5},
+    {0.5, 0, 1},
+    {0, 1, 0.5},
+    {1, 0.5, 0},    
+  };
+  if(millis() - tmr1 >= period){
+    tmr1 = millis();
+    counter2 += 1;
+    if(counter2 == 3){
+      counter2 = 0; 
+      counter += 1;
+    }
+    if(counter == 3) counter == 0;
+  }
+
+  for(int i = 0; i < 6; i++){
+    if(pos_quad[i][counter] == 0){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = down;
+    }else if(pos_quad[i][counter] == 1){
+      if(counter2 == 0){
+        the_pos[0][i] = positions[i][2];
+        the_pos[1][i] = positions[i][3];
+        the_pos[2][i] = up;
+      }else if(counter2 == 1){
+        the_pos[0][i] = positions[i][0];
+        the_pos[1][i] = positions[i][1];
+        the_pos[2][i] = up;
+      }else(counter2 == 2){
+        the_pos[0][i] = positions[i][0];
+        the_pos[1][i] = positions[i][1];
+        the_pos[2][i] = down;
+      }
+    }else{
+      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * pos_quad[i][counter]);
+      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * pos_quad[i][counter]);
+      the_pos[2][i] = down;
+    }
+  }
+
+  for(int i = 0; i < 6; i++){
+    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
   }
 }
 

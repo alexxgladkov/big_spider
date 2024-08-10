@@ -17,6 +17,10 @@ Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);
 #define c_const 85       // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
+#define dist_1 165
+#define dist_2 125
+#define dist_3 90
+
 int corrections[] = {-45, 0, 45, 45, 0, -45}; // поправки для углов серво первого плеча ног
 //-----------------------------------------------------------------------------------------
 // Это все константы механики. Они не меняются, обусловлены конструкцией
@@ -172,12 +176,12 @@ void rotation(int angle_dist, int l_step, int direction){ // 0 - right 1 -left
     float Y2 = sin(radians(kappa2)) * l_diag;
     float X2 = sin(radians(epsilon2)) * l_diag; //ищем координаты
 
-    if(direction == 0){
+    if(direction == 0 && i < 3 || direction == 0 && i >= 3){
       positions[i][0] = X1;
       positions[i][1] = Y1;
       positions[i][2] = X2;
       positions[i][3] = Y2;
-    }else{
+    }if(direction == 0 && i >= 3 || direction == 0 && i < 3){
       positions[i][0] = X2;
       positions[i][1] = Y2;
       positions[i][2] = X1;
@@ -202,14 +206,14 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 
 void hexapod(int period, int up, int down){
   int the_pos[3][6];// 3 координаты 6 ног
-  int num_of_takts = 2;
+  int num_of_takts = 4;
   float pos_quad[6][num_of_takts] = {
-    {0, 1},
-    {1, 0},
-    {0, 1},
-    {1, 0},
-    {0, 1},
-    {1, 0},    
+    {1,   0.5, 0.5, 0},
+    {0.5, 0,   1,   0.5},
+    {1,   0.5, 0.5, 0},
+    {0.5, 0,   1,   0.5},
+    {1,   0.5, 0.5, 0},
+    {0.5, 0,   1,   0.5},    
   };
   if(millis() - tmr1 >= period){
     tmr1 = millis();
@@ -359,6 +363,24 @@ void wave_f(int period, int up, int down){
   }
 }
 
+void angleing(int basic_pos, int alph, int bet, int dist_x){
+  int x_abs = dist_x / sqrt(2);
+  //--------------------1---------------------
+  int dist_a1 = tan(radians(alph)) * ((dist_1 / 2) + (x_abs));
+  int dist_a2 = tan(radians(alph)) * ((dist_2 / 2) + dist_x);
+  //--------------------2---------------------
+  int dist_b = tan(radians(bet) * (dist_3 + (dist_x / sqrt(2))));
+  //--------------------3---------------------
+  int loc_pos[3][6]{
+    {x_abs, x_abs, x_abs, x_abs, x_abs, x_abs},
+    {x_abs, 0, -x_abs, -x_abs, 0, x_abs},
+    {dist_a1 + dist_b, dist_a1, dist_b, -dist_a1 - dist_b, -dist_a1, -dist_a1 + dist_b},
+  };
+  for(int i = 0; i < 6; i++){
+    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i);
+  }
+}
+
 void move_to(int x, int y, int z, int leg_num){ 
   //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
   // -----------1-----------
@@ -386,14 +408,13 @@ void move_to(int x, int y, int z, int leg_num){
   int degrees[] = {S1, S2, S3};
 
   //------------------------------------------------------------------------------------
-  
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
       if(millis() - tmr3 >= per){
         if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
           int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
           last_angle[i][leg_num] -= edenitsa;
-          left.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 180, 0, SERVOMIN, SERVOMAX));
+          right.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
         }
       }
     }
@@ -403,7 +424,7 @@ void move_to(int x, int y, int z, int leg_num){
         if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
           int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
           last_angle[i][leg_num] -= edenitsa;
-          left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
+          left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 180, 0, SERVOMIN, SERVOMAX));
         }
       }
     }

@@ -34,6 +34,7 @@ uint16_t timing = 1000;
 // переменные для управления со смартфона
 
 int per = 50;
+int count = 0;
 int counter2 = 0;
 int counter = 0;
 uint32_t tmr1 = millis();
@@ -64,7 +65,6 @@ void build(gh::Builder& b) {
   b.beginRow();
   b.Button().label("квадропод").attach(&quad);
   b.Button().label("гексапод").attach(&hex);
-  b.Button().label("по одной").attach(&wave);
   b.endRow(); 
   b.Text("направление").rows(1);
   b.beginRow();
@@ -148,14 +148,11 @@ void loop() {
 
   if(hex) moving_res = "h";
   if(quad) moving_res = "q";
-  if(wave) moving_res = "w";
 
   if(moving_res == "h"){
     hexapod(timing, -up_dist, -down_dist);
   }else if(moving_res == "q"){
     quadropod(timing, -up_dist, -down_dist);
-  }else if(moving_res == "w"){
-    wave_f(timing, -up_dist, -down_dist);
   }
 }
 
@@ -175,16 +172,30 @@ void rotation(int angle_dist, int l_step, int direction){ // 0 - right 1 -left
     float Y2 = sin(radians(kappa2)) * l_diag;
     float X2 = sin(radians(epsilon2)) * l_diag; //ищем координаты
 
-    if(direction == 0 && i < 3 || direction == 0 && i >= 3){
-      positions[i][0] = X1;
-      positions[i][1] = Y1;
-      positions[i][2] = X2;
-      positions[i][3] = Y2;
-    }if(direction == 0 && i >= 3 || direction == 0 && i < 3){
-      positions[i][0] = X2;
-      positions[i][1] = Y2;
-      positions[i][2] = X1;
-      positions[i][3] = Y1;
+    if(direction == 0){
+      if(i < 3){
+        positions[i][0] = X1;
+        positions[i][1] = Y1;
+        positions[i][2] = X2;
+        positions[i][3] = Y2;
+      }else{
+        positions[i][0] = X2;
+        positions[i][1] = Y2;
+        positions[i][2] = X1;
+        positions[i][3] = Y1;
+      }
+    }if(direction == 1){
+      if(i >= 3){
+        positions[i][0] = X1;
+        positions[i][1] = Y1;
+        positions[i][2] = X2;
+        positions[i][3] = Y2;
+      }else{
+        positions[i][0] = X2;
+        positions[i][1] = Y2;
+        positions[i][2] = X1;
+        positions[i][3] = Y1;
+      }
     }
   }
 }
@@ -205,42 +216,70 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 
 void hexapod(int period, int up, int down){
   int the_pos[3][6];// 3 координаты 6 ног
-  int num_of_takts = 8;
-  float pos_quad[6][num_of_takts] = {
-    {1, 2, 3, 0.5, 0.5, 0.5, 0.5, 0},
-    {0.5, 0.5, 0.5, 0, 1, 2, 3, 0.5},
-    {1, 2, 3, 0.5, 0.5, 0.5, 0.5, 0},
-    {0.5, 0.5, 0.5, 0, 1, 2, 3, 0.5},
-    {1, 2, 3, 0.5, 0.5, 0.5, 0.5, 0},
-    {0.5, 0.5, 0.5, 0, 1, 2, 3, 0.5},    
+  float pos_quad[6][4] = {
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},    
   };
+
+  int takt[4] = {3, 1, 3, 1};
+  int lenth = 0;
+  for(int i = 0; i < 4; i++) lenth += takt[i];
+  float full_quad[6][lenth];
+  int count = 0;
+
+  for(int i = 0; i < 6; i++){
+    for(int j = 0; j < 4; j++){
+      if(takt[j] == 1){
+        full_quad[i][count] = pos_quad[i][j];
+        count += 1;
+      }else if(takt[j] == 3){
+        if(pos_quad[i][j] == 1){
+          full_quad[i][count] = 1;
+          full_quad[i][count + 1] = 2;
+          full_quad[i][count + 2] = 3;
+        }if(pos_quad[i][j] != 1){
+          full_quad[i][count] = pos_quad[i][j];
+          full_quad[i][count + 1] = pos_quad[i][j];
+          full_quad[i][count + 2] = pos_quad[i][j];
+        }
+        count += 3;
+      }
+    }
+    count = 0;
+  }
+
   if(millis() - tmr1 >= period){
     tmr1 = millis();
     counter += 1; 
-    if(counter == num_of_takts){
+    if(counter == lenth){
       counter = 0;
     } 
   }
+
   for(int i = 0; i < 6; i++){
-    if(pos_quad[i][counter] == 0){
+    if(full_quad[i][counter] == 0){
       the_pos[0][i] = positions[i][2];
       the_pos[1][i] = positions[i][3];
       the_pos[2][i] = down;
-    }else if(pos_quad[i][counter] == 1){
-        the_pos[0][i] = positions[i][2];
-        the_pos[1][i] = positions[i][3];
-        the_pos[2][i] = up;
-    }else if(pos_quad[i][counter] == 2){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = up;
-    }else if(pos_quad[i][counter] == 3){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = down;
+    }else if(full_quad[i][counter] == 1){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 2){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 3){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = down;
     }else{
-      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * pos_quad[i][counter]);
-      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * pos_quad[i][counter]);
+      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
+      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
       the_pos[2][i] = down;
     }
   }
@@ -252,101 +291,70 @@ void hexapod(int period, int up, int down){
 
 void quadropod(int period, int up, int down){
   int the_pos[3][6];// 3 координаты 6 ног
-  int num_of_takts = 3;
-  float pos_quad[6][num_of_takts] = {
-    {0.5, 0, 1},
-    {1, 0.5, 0},
-    {0, 1, 0.5},
-    {0.5, 0, 1},
-    {0, 1, 0.5},
-    {1, 0.5, 0},    
+  float pos_quad[6][6] = {
+    {1, 0.66, 0.66, 0.33, 0.33, 0},
+    {0.33, 0, 1, 0.66, 0.66, 0.33},
+    {0.66, 0.33, 0.33, 0, 1, 0.66},
+    {1, 0.66, 0.66, 0.33, 0.33, 0},
+    {0.66, 0.33, 0.33, 0, 1, 0.66},
+    {0.33, 0, 1, 0.66, 0.66, 0.33},
   };
+
+  int takt[6] = {3, 1, 3, 1, 3, 1};
+  int lenth = 0;
+  for(int i = 0; i < 6; i++) lenth += takt[i];
+  float full_quad[6][lenth];
+  int count = 0;
+
+  for(int i = 0; i < 6; i++){
+    for(int j = 0; j < 6; j++){
+      if(takt[j] == 1){
+        full_quad[i][count] = pos_quad[i][j];
+        count += 1;
+      }else if(takt[j] == 3){
+        if(pos_quad[i][j] == 1){
+          full_quad[i][count] = 1;
+          full_quad[i][count + 1] = 2;
+          full_quad[i][count + 2] = 3;
+        }if(pos_quad[i][j] != 1){
+          full_quad[i][count] = pos_quad[i][j];
+          full_quad[i][count + 1] = pos_quad[i][j];
+          full_quad[i][count + 2] = pos_quad[i][j];
+        }
+        count += 3;
+      }
+    }
+    count = 0;
+  }
+
   if(millis() - tmr1 >= period){
     tmr1 = millis();
-    counter2 += 1;
-    if(counter2 == 3){
-      counter += 1;
-      counter2 = 0; 
-      if(counter == num_of_takts){
-        counter = 0;
-      } 
-    }
-  }
-  for(int i = 0; i < 6; i++){
-    if(pos_quad[i][counter] == 0){
-      the_pos[0][i] = positions[i][2];
-      the_pos[1][i] = positions[i][3];
-      the_pos[2][i] = down;
-    }else if(pos_quad[i][counter] == 1){
-      if(counter2 == 0){
-        the_pos[0][i] = positions[i][2];
-        the_pos[1][i] = positions[i][3];
-        the_pos[2][i] = up;
-      }else if(counter2 == 1){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = up;
-      }else if(counter2 == 2){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = down;
-      }
-    }else{
-      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * pos_quad[i][counter]);
-      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * pos_quad[i][counter]);
-      the_pos[2][i] = down;
-    }
+    counter += 1; 
+    if(counter == lenth){
+      counter = 0;
+    } 
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
-  }
-}
-
-void wave_f(int period, int up, int down){
-  int the_pos[3][6];// 3 координаты 6 ног
-  int num_of_takts = 6;
-  float pos_quad[6][num_of_takts] = {
-    {0.2, 0.4, 0.6, 0.8, 0, 1},
-    {1, 0.2, 0.4, 0.6, 0.8, 0},
-    {0, 1, 0.2, 0.4, 0.6, 0.8},
-    {0.8, 0, 1, 0.2, 0.4, 0.6},
-    {0.6, 0.8, 0, 1, 0.2, 0.4},
-    {0.4, 0.6, 0.8, 0, 1, 0.2},    
-  };
-  if(millis() - tmr1 >= period){
-    tmr1 = millis();
-    counter2 += 1;
-    if(counter2 == 3){
-      counter += 1;
-      counter2 = 0; 
-      if(counter == num_of_takts){
-        counter = 0;
-      } 
-    }
-  }
-  for(int i = 0; i < 6; i++){
-    if(pos_quad[i][counter] == 0){
+    if(full_quad[i][counter] == 0){
       the_pos[0][i] = positions[i][2];
       the_pos[1][i] = positions[i][3];
       the_pos[2][i] = down;
-    }else if(pos_quad[i][counter] == 1){
-      if(counter2 == 0){
-        the_pos[0][i] = positions[i][2];
-        the_pos[1][i] = positions[i][3];
-        the_pos[2][i] = up;
-      }else if(counter2 == 1){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = up;
-      }else if(counter2 == 2){
-        the_pos[0][i] = positions[i][0];
-        the_pos[1][i] = positions[i][1];
-        the_pos[2][i] = down;
-      }
+    }else if(full_quad[i][counter] == 1){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 2){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 3){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = down;
     }else{
-      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * pos_quad[i][counter]);
-      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * pos_quad[i][counter]);
+      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
+      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
       the_pos[2][i] = down;
     }
   }

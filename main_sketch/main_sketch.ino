@@ -1,24 +1,47 @@
 #include <Adafruit_PWMServoDriver.h>    // Подключаем библиотеку Adafruit_PWMServoDriver
+#include <GyverHub.h>
+#include <EEPROM.h>
 
-Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);    //Create an object of board 1
-Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);    //Create an object of board 2 (A0 Address Jumper)
+GyverHub hub("MyDevices", "ESP8266", "");  // имя сети, имя устройства, иконка
+
+Adafruit_PWMServoDriver right = Adafruit_PWMServoDriver(0x42);
+Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);
+//-----------------------------------------------------------------------------------------
+// библиотеки
+
 #define SERVOMIN  90                // Минимальная длительность импульса для сервопривода
-#define SERVOMAX  500                  // Максимальная длина импульса для сервопривода
+#define SERVOMAX  500               // Максимальная длина импульса для сервопривода
 
-#define a 36   // константа:  плеча А
-#define b 46   // константа: l плеча В
-#define c 85   // константа: l плеча C
+#define a_const 36       // константа:  плеча А
+#define b_const 46       // константа: l плеча В
+#define c_const 85       // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
-int corrections[] = {-45, 0, 45, 45, 0, -45};
-//номера ног 0 .... 5
+#define dist_1 165
+#define dist_2 125
+#define dist_3 90
 
-// Это все константы механики. Они не меняются, обусловлены конструкцией.
-// ИЗ КАДА НЕ ТРОГАЙ 
+int corrections[] = {-45, 0, 45, 45, 0, -45}; // поправки для углов серво первого плеча ног
+//-----------------------------------------------------------------------------------------
+// Это все константы механики. Они не меняются, обусловлены конструкцией
 
-int counter;
-int counter1 = 0;
+gh::Flag right_h, front, left_h, stop, read_e, write_e, hex, quad, wave;
+uint16_t up_dist, down_dist, distation, step_distation, pos;      
+String resim = "";
+String moving_res = "";
+uint16_t timing = 1000;
+//-----------------------------------------------------------------------------------------
+// переменные для управления со смартфона
+
+int per = 50;
+int count = 0;
+int counter2 = 0;
+int counter = 0;
 uint32_t tmr1 = millis();
+uint32_t tmr2 = millis();
+uint32_t tmr3 = millis();
+//-----------------------------------------------------------------------------------------
+// таймеры для работы прошивки
 
 float positions[6][4]{
   {0, 0, 0, 0}, // нога 0 (х, у) нач (х, у) кон
@@ -29,22 +52,111 @@ float positions[6][4]{
   {0, 0, 0, 0}, // нога 5 (х, у) нач (х, у) кон
 };
 
+float last_angle[3][6] =  {
+  {90, 90, 90, 90, 90, 90},
+  {180, 180, 180, 180, 180, 180},
+  {0, 0, 0, 0, 0, 0},
+};
+//-----------------------------------------------------------------------------------------
+// массивы для хранения положений ног
+
+void build(gh::Builder& b) {
+  b.Text("режим хотьбы").rows(1);
+  b.beginRow();
+  b.Button().label("квадропод").attach(&quad);
+  b.Button().label("гексапод").attach(&hex);
+  b.endRow(); 
+  b.Text("направление").rows(1);
+  b.beginRow();
+  b.Button().label("право").attach(&right_h);
+  b.Button().label("вперед").attach(&front);
+  b.Button().label("лево").attach(&left_h);
+  b.endRow(); 
+  b.Button().label("стоп").attach(&stop).size(450);  
+  b.Slider(&pos).label("поворот").range(0, 360, 10);
+  b.Text("Параметры шага").rows(1);
+  b.beginRow();
+  b.Slider_("up_dist", &up_dist).label("верхняя точка").range(0, 100, 5);
+  b.Slider_("down_dist", &down_dist).label("нижняя точка").range(0, 100, 5);
+  b.endRow();
+  b.beginRow();
+  b.Slider_("distation", &distation).label("отводит на").range(20, 120, 10);
+  b.Slider_("step_distation", &step_distation).label("шагает на").range(0, 50, 5);
+  b.endRow();
+  b.Slider_("timing", &timing).label("задержка").range(25, 500, 25);
+  b.Text("eeprom").rows(1);
+  b.beginRow();
+  b.Button().label("записать").attach(&write_e);  
+  b.Button().label("считать").attach(&read_e);  
+  b.endRow();
+  b.Input(&per);
+}
+//-----------------------------------------------------------------------------------------
+// конструируем интерфейс
+
 void setup() {
   Serial.begin(9600);
-  right.begin();             //Start each board
+  //-----------------Serial------------------
+  right.begin();             
   left.begin();
-  right.setOscillatorFrequency(27000000);    //Set the PWM oscillator frequency, used for fine calibration
+  right.setOscillatorFrequency(27000000);    
   left.setOscillatorFrequency(27000000);
-  right.setPWMFreq(50);          //Set the servo operating frequency
+  right.setPWMFreq(50);         
   left.setPWMFreq(50);
+  //------------------Servo------------------
+  WiFi.mode(WIFI_STA);
+  WiFi.begin("Penibord_2G", "StrA97!B16");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  hub.onBuild(build); // подключаем билдер
+  hub.begin();        // запускаем систему
+  //---------------Приложение----------------
+  EEPROM.begin(1000);   // для esp8266/esp32
+  up_dist = EEPROM.read(10);
+  down_dist = EEPROM.read(12);
+  distation = EEPROM.read(14);
+  step_distation = EEPROM.read(16);
+  //------------------память-----------------
 }
 
 void loop() {  
-  angle_moving(90, 60, 15);
-  quadropod2(250, -50, -65);
+  ep_tick();
+  hub.tick();
+
+  if(right_h) resim = "r"; 
+  if(left_h) resim = "l"; 
+  if(front) resim = "f"; 
+  if(stop) resim = "s";
+
+  if(resim == "r"){
+    rotation(distation, step_distation, 0);
+
+  }else if(resim == "l"){
+    rotation(distation, step_distation, 1);
+  }else if(resim == "f"){
+    angle_moving(pos, distation, step_distation);
+  }else if(resim == "s"){
+    for(int i = 0; i < 6; i++){
+      positions[i][0] = 100;
+      positions[i][1] = 0;
+      positions[i][2] = 100;
+      positions[i][3] = 0;
+    }
+  }
+
+  if(hex) moving_res = "h";
+  if(quad) moving_res = "q";
+
+  if(moving_res == "h"){
+    hexapod(timing, -up_dist, -down_dist);
+  }else if(moving_res == "q"){
+    quadropod(timing, -up_dist, -down_dist);
+  }
 }
 
-void rotation(int angle_dist, int l_step){
+void rotation(int angle_dist, int l_step, int direction){ // 0 - right 1 -left
   int angles[] = {45, 90, 135, 135, 90, 45};
   for(int i = 0; i < 6; i++){
     int angle = angles[i];
@@ -60,10 +172,31 @@ void rotation(int angle_dist, int l_step){
     float Y2 = sin(radians(kappa2)) * l_diag;
     float X2 = sin(radians(epsilon2)) * l_diag; //ищем координаты
 
-    positions[i][0] = X1;
-    positions[i][1] = Y1;
-    positions[i][2] = X2;
-    positions[i][3] = Y2;
+    if(direction == 0){
+      if(i < 3){
+        positions[i][0] = X1;
+        positions[i][1] = Y1;
+        positions[i][2] = X2;
+        positions[i][3] = Y2;
+      }else{
+        positions[i][0] = X2;
+        positions[i][1] = Y2;
+        positions[i][2] = X1;
+        positions[i][3] = Y1;
+      }
+    }if(direction == 1){
+      if(i >= 3){
+        positions[i][0] = X1;
+        positions[i][1] = Y1;
+        positions[i][2] = X2;
+        positions[i][3] = Y2;
+      }else{
+        positions[i][0] = X2;
+        positions[i][1] = Y2;
+        positions[i][2] = X1;
+        positions[i][3] = Y1;
+      }
+    }
   }
 }
 
@@ -75,87 +208,178 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 
   for(int i = 0; i < 6; i++){             // X Y здесь записаны позиции для движения ног
     positions[i][0] = l_dist - l_diff;
-    positions[i][1] = l_perp;
+    positions[i][1] = l_perp;     
     positions[i][2] = l_dist + l_diff;
     positions[i][3] = -l_perp;
   }
 }
 
-void hexapod(int period, int l_up, int l_down){
-  if(millis() - tmr1 >= period){
-    tmr1 = millis();
-    counter += 1;
-  }
-  switch(counter){
-    case 1:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i); 
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
-      break;
-    case 2:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
-      break;
-    case 3:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][2], positions[i][3], l_up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][0], positions[i][1], l_down, i);
-      break;
-    case 4:
-      for(int i = 0; i < 5; i = i + 2) move_to(positions[i][0], positions[i][1], l_up, i);
-      for(int i = 1; i < 6; i = i + 2) move_to(positions[i][2], positions[i][3], l_down, i);
-      counter = 0;
-      break;
-  }
-}
-
-void quadropod(int period, int up, int down){
-  int up_down[6][6]{ // down - 0; up -1
-    {down, down, down, down, up, up}, //1
-    {up, up, down, down, down, down}, //2
-    {down, down, up, up, down, down}, //3    
-    {down, down, down, down, up, up}, //1
-    {down, down, up, up, down, down}, //3
-    {up, up, down, down, down, down}, //2
+void hexapod(int period, int up, int down){
+  int the_pos[3][6];// 3 координаты 6 ног
+  float pos_quad[6][4] = {
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},
+    {1, 0.5, 0.5, 0},
+    {0.5, 0, 1, 0.5},    
   };
 
-  int pos_num[6][6]{ // st - 0, mid - 1, fin - 2
-    {0, 1, 1, 2, 2, 0}, //1
-    {2, 0, 0, 1, 1, 2}, //2
-    {1, 2, 2, 0, 0, 1}, //3    
-    {0, 1, 1, 2, 2, 0}, //1
-    {1, 2, 2, 0, 0, 1}, //3
-    {2, 0, 0, 1, 1, 2}, //2
-
-  };
-
-  if(millis() - tmr1 >= period){
-    tmr1 = millis();
-    counter += 1;
-    if(counter == 6) counter = 0;
-    Serial.println("tick");
-  }
-  int the_pos[2][6];
+  int takt[4] = {3, 1, 3, 1};
+  int lenth = 0;
+  for(int i = 0; i < 4; i++) lenth += takt[i];
+  float full_quad[6][lenth];
+  int count = 0;
 
   for(int i = 0; i < 6; i++){
-    if(pos_num[i][counter] == 0){
-      the_pos[0][i] = positions[i][0];
-      the_pos[1][i] = positions[i][1];
-    }else if(pos_num[i][counter] == 1){
-      the_pos[0][i] = middle(positions[i][0], positions[i][2]);
-      the_pos[1][i] = middle(positions[i][1], positions[i][3]);
-    }else if(pos_num[i][counter] == 2){
+    for(int j = 0; j < 4; j++){
+      if(takt[j] == 1){
+        full_quad[i][count] = pos_quad[i][j];
+        count += 1;
+      }else if(takt[j] == 3){
+        if(pos_quad[i][j] == 1){
+          full_quad[i][count] = 1;
+          full_quad[i][count + 1] = 2;
+          full_quad[i][count + 2] = 3;
+        }if(pos_quad[i][j] != 1){
+          full_quad[i][count] = pos_quad[i][j];
+          full_quad[i][count + 1] = pos_quad[i][j];
+          full_quad[i][count + 2] = pos_quad[i][j];
+        }
+        count += 3;
+      }
+    }
+    count = 0;
+  }
+
+  if(millis() - tmr1 >= period){
+    tmr1 = millis();
+    counter += 1; 
+    if(counter == lenth){
+      counter = 0;
+    } 
+  }
+
+  for(int i = 0; i < 6; i++){
+    if(full_quad[i][counter] == 0){
       the_pos[0][i] = positions[i][2];
       the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = down;
+    }else if(full_quad[i][counter] == 1){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 2){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 3){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = down;
+    }else{
+      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
+      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
+      the_pos[2][i] = down;
     }
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos[0][i], the_pos[1][i], up_down[i][counter], i);
+    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
   }
 }
 
-int middle(int start, int stop){
-  int result = (start + stop) / 2;
-  return result;
+void quadropod(int period, int up, int down){
+  int the_pos[3][6];// 3 координаты 6 ног
+  float pos_quad[6][6] = {
+    {1, 0.66, 0.66, 0.33, 0.33, 0},
+    {0.33, 0, 1, 0.66, 0.66, 0.33},
+    {0.66, 0.33, 0.33, 0, 1, 0.66},
+    {1, 0.66, 0.66, 0.33, 0.33, 0},
+    {0.66, 0.33, 0.33, 0, 1, 0.66},
+    {0.33, 0, 1, 0.66, 0.66, 0.33},
+  };
+
+  int takt[6] = {3, 1, 3, 1, 3, 1};
+  int lenth = 0;
+  for(int i = 0; i < 6; i++) lenth += takt[i];
+  float full_quad[6][lenth];
+  int count = 0;
+
+  for(int i = 0; i < 6; i++){
+    for(int j = 0; j < 6; j++){
+      if(takt[j] == 1){
+        full_quad[i][count] = pos_quad[i][j];
+        count += 1;
+      }else if(takt[j] == 3){
+        if(pos_quad[i][j] == 1){
+          full_quad[i][count] = 1;
+          full_quad[i][count + 1] = 2;
+          full_quad[i][count + 2] = 3;
+        }if(pos_quad[i][j] != 1){
+          full_quad[i][count] = pos_quad[i][j];
+          full_quad[i][count + 1] = pos_quad[i][j];
+          full_quad[i][count + 2] = pos_quad[i][j];
+        }
+        count += 3;
+      }
+    }
+    count = 0;
+  }
+
+  if(millis() - tmr1 >= period){
+    tmr1 = millis();
+    counter += 1; 
+    if(counter == lenth){
+      counter = 0;
+    } 
+  }
+
+  for(int i = 0; i < 6; i++){
+    if(full_quad[i][counter] == 0){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = down;
+    }else if(full_quad[i][counter] == 1){
+      the_pos[0][i] = positions[i][2];
+      the_pos[1][i] = positions[i][3];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 2){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = up;
+    }else if(full_quad[i][counter] == 3){
+      the_pos[0][i] = positions[i][0];
+      the_pos[1][i] = positions[i][1];
+      the_pos[2][i] = down;
+    }else{
+      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
+      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
+      the_pos[2][i] = down;
+    }
+  }
+
+  for(int i = 0; i < 6; i++){
+    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
+  }
+}
+
+void angleing(int basic_pos, int alph, int bet, int dist_x){
+  int x_abs = dist_x / sqrt(2);
+  //--------------------1---------------------
+  int dist_a1 = tan(radians(alph)) * ((dist_1 / 2) + (x_abs));
+  int dist_a2 = tan(radians(alph)) * ((dist_2 / 2) + dist_x);
+  //--------------------2---------------------
+  int dist_b = tan(radians(bet) * (dist_3 + (dist_x / sqrt(2))));
+  //--------------------3---------------------
+  int loc_pos[3][6]{
+    {x_abs, x_abs, x_abs, x_abs, x_abs, x_abs},
+    {x_abs, 0, -x_abs, -x_abs, 0, x_abs},
+    {dist_a1 + dist_b, dist_a1, dist_b, -dist_a1 - dist_b, -dist_a1, -dist_a1 + dist_b},
+  };
+  for(int i = 0; i < 6; i++){
+    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i);
+  }
 }
 
 void move_to(int x, int y, int z, int leg_num){ 
@@ -170,29 +394,56 @@ void move_to(int x, int y, int z, int leg_num){
   int S1 = gamma + corrections[leg_num];
   // -----------2-----------
   // смотри тетрадь стр. 17 - 18
-  float d = sqrt(sq(q - a) + sq(z));
+  float d = sqrt(sq(q - a_const) + sq(z));
   int h = 15;
-  float j = sqrt(sq(q - a) + sq(15 - z));
+  float j = sqrt(sq(q - a_const) + sq(15 - z));
   float beta = degrees(acos((sq(h) + sq(d) - sq(j)) / (2 * h * d)));
-  if(q < a) beta = 360 - beta;
-  float omega = degrees(acos((sq(b) + sq(d) - sq(c)) / (2 * b * d)));
+  if(q < a_const) beta = 360 - beta;
+  float omega = degrees(acos((sq(b_const) + sq(d) - sq(c_const)) / (2 * b_const * d)));
   int S2 = beta - (omega + const_angle);
   S2 = 180 - S2;
   // -----------3-----------
   // смотри тетрадь стр. 18 - 19
-  float alpha = degrees(acos((sq(b) + sq(c) - sq(d)) / (2 * b * c)));
+  float alpha = degrees(acos((sq(b_const) + sq(c_const) - sq(d)) / (2 * b_const * c_const)));
   int S3 = alpha - const_angle;
   int degrees[] = {S1, S2, S3};
 
   //------------------------------------------------------------------------------------
   if(leg_num < 3){
     for(int i = 0; i < 3; i++){
-      right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
+      if(millis() - tmr3 >= per){
+        if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
+          int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
+          last_angle[i][leg_num] -= edenitsa;
+          right.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
+        }
+      }
+    }
+  }if(leg_num >= 3){
+    for(int i = 0; i < 3; i++){
+      if(millis() - tmr3 >= per){
+        if(abs(last_angle[i][leg_num] - degrees[i]) > 0){
+          int edenitsa = (last_angle[i][leg_num] - degrees[i]) / abs(last_angle[i][leg_num] - degrees[i]);
+          last_angle[i][leg_num] -= edenitsa;
+          left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 180, 0, SERVOMIN, SERVOMAX));
+        }
+      }
     }
   }
-  if(leg_num >= 3){
-    for(int i = 0; i < 3; i++){
-      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
-    }
+}
+
+void ep_tick(){
+    if(read_e){
+    hub.update("up_dist").value(EEPROM.read(10));
+    hub.update("down_dist").value(EEPROM.read(12));
+    hub.update("distation").value(EEPROM.read(14));
+    hub.update("step_distation").value(EEPROM.read(16));
+  }
+  if(write_e){
+    EEPROM.put(10, up_dist);
+    EEPROM.put(12, down_dist);
+    EEPROM.put(14, distation);
+    EEPROM.put(16, step_distation);
+    EEPROM.commit();
   }
 }

@@ -14,7 +14,7 @@ Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);
 
 #define a_const 36       // константа:  плеча А
 #define b_const 46       // константа: l плеча В
-#define c_const 85       // константа: l плеча C
+#define c_const 77       // константа: l плеча C
 #define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
 
 #define dist_1 165
@@ -26,7 +26,9 @@ int corrections[] = {-45, 0, 45, 45, 0, -45}; // поправки для угл�
 // Это все константы механики. Они не меняются, обусловлены конструкцией
 
 gh::Flag right_h, front, left_h, stop, read_e, write_e, hex, quad, wave;
-uint16_t up_dist, down_dist, distation, step_distation, pos;      
+uint16_t up_dist, down_dist, distation, step_distation, pos;   
+uint16_t alpha_sld = 20;
+uint16_t beta_sld = 20;
 String resim = "";
 String moving_res = "";
 uint16_t timing = 1000;
@@ -71,9 +73,9 @@ void build(gh::Builder& b) {
   b.Button().label("право").attach(&right_h);
   b.Button().label("вперед").attach(&front);
   b.Button().label("лево").attach(&left_h);
-  b.endRow(); 
-  b.Button().label("стоп").attach(&stop).size(450);  
+  b.endRow();   
   b.Slider(&pos).label("поворот").range(0, 360, 10);
+  b.Button().label("стоп").attach(&stop).size(450); 
   b.Text("Параметры шага").rows(1);
   b.beginRow();
   b.Slider_("up_dist", &up_dist).label("верхняя точка").range(0, 100, 5);
@@ -140,11 +142,10 @@ void loop() {
   }else if(resim == "s"){
     for(int i = 0; i < 6; i++){
       positions[i][0] = 100;
-      positions[i][1] = 0;
+      positions[i][1] = 100;
       positions[i][2] = 100;
-      positions[i][3] = 0;
+      positions[i][3] = 100;
     }
-  }
 
   if(hex) moving_res = "h";
   if(quad) moving_res = "q";
@@ -208,9 +209,17 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 
   for(int i = 0; i < 6; i++){             // X Y здесь записаны позиции для движения ног
     positions[i][0] = l_dist - l_diff;
-    positions[i][1] = l_perp;     
     positions[i][2] = l_dist + l_diff;
-    positions[i][3] = -l_perp;
+    if(i == 0 || i == 5){
+      positions[i][3] = -l_perp + l_dist;
+      positions[i][1] = l_perp + l_dist; 
+    }if(i == 1 || i == 4){
+      positions[i][3] = -l_perp;
+      positions[i][1] = l_perp; 
+    }if(i == 2 || i == 3){
+      positions[i][3] = -l_perp - l_dist;
+      positions[i][1] = l_perp - l_dist; 
+    }
   }
 }
 
@@ -377,6 +386,7 @@ void angleing(int basic_pos, int alph, int bet, int dist_x){
     {x_abs, 0, -x_abs, -x_abs, 0, x_abs},
     {dist_a1 + dist_b, dist_a1, dist_b, -dist_a1 - dist_b, -dist_a1, -dist_a1 + dist_b},
   };
+  for(int i = 0; i < 6; i++) loc_pos[3][i] += basic_pos;
   for(int i = 0; i < 6; i++){
     move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i);
   }

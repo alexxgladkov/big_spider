@@ -36,9 +36,8 @@ uint16_t timing = 1000;
 // переменные для управления со смартфона
 
 int per = 50;
-int count = 0;
-int counter2 = 0;
-int counter = 0;
+int counter_hex = 0;
+int counter_quad = 0;
 uint32_t tmr1 = millis();
 uint32_t tmr2 = millis();
 uint32_t tmr3 = millis();
@@ -134,18 +133,11 @@ void loop() {
 
   if(resim == "r"){
     rotation(distation, step_distation, 0);
-
   }else if(resim == "l"){
     rotation(distation, step_distation, 1);
   }else if(resim == "f"){
     angle_moving(pos, distation, step_distation);
-  }else if(resim == "s"){
-    for(int i = 0; i < 6; i++){
-      positions[i][0] = 100;
-      positions[i][1] = 100;
-      positions[i][2] = 100;
-      positions[i][3] = 100;
-    }
+  }
 
   if(hex) moving_res = "h";
   if(quad) moving_res = "q";
@@ -224,8 +216,8 @@ void angle_moving(float move_angle, int l_dist, int l_step){
 }
 
 void hexapod(int period, int up, int down){
-  int the_pos[3][6];// 3 координаты 6 ног
-  float pos_quad[6][4] = {
+  int the_pos_hex[3][6];// 3 координаты 6 ног
+  float pos_hex[6][4] = {
     {1, 0.5, 0.5, 0},
     {0.5, 0, 1, 0.5},
     {1, 0.5, 0.5, 0},
@@ -234,72 +226,72 @@ void hexapod(int period, int up, int down){
     {0.5, 0, 1, 0.5},    
   };
 
-  int takt[4] = {3, 1, 3, 1};
-  int lenth = 0;
-  for(int i = 0; i < 4; i++) lenth += takt[i];
-  float full_quad[6][lenth];
-  int count = 0;
+  int takt_hex[4] = {3, 1, 3, 1};
+  int lenth_hex = 0;
+  for(int i = 0; i < 4; i++) lenth_hex += takt_hex[i];
+  float full_hex[6][lenth_hex];
+  int count_hex = 0;
 
   for(int i = 0; i < 6; i++){
     for(int j = 0; j < 4; j++){
-      if(takt[j] == 1){
-        full_quad[i][count] = pos_quad[i][j];
-        count += 1;
-      }else if(takt[j] == 3){
-        if(pos_quad[i][j] == 1){
-          full_quad[i][count] = 1;
-          full_quad[i][count + 1] = 2;
-          full_quad[i][count + 2] = 3;
-        }if(pos_quad[i][j] != 1){
-          full_quad[i][count] = pos_quad[i][j];
-          full_quad[i][count + 1] = pos_quad[i][j];
-          full_quad[i][count + 2] = pos_quad[i][j];
+      if(takt_hex[j] == 1){
+        full_hex[i][count_hex] = pos_hex[i][j];
+        count_hex += 1;
+      }else if(takt_hex[j] == 3){
+        if(pos_hex[i][j] == 1){
+          full_hex[i][count_hex] = 1;
+          full_hex[i][count_hex + 1] = 2;
+          full_hex[i][count_hex + 2] = 3;
+        }if(pos_hex[i][j] != 1){
+          full_hex[i][count_hex] = pos_hex[i][j];
+          full_hex[i][count_hex + 1] = pos_hex[i][j];
+          full_hex[i][count_hex + 2] = pos_hex[i][j];
         }
-        count += 3;
+        count_hex += 3;
       }
     }
-    count = 0;
+    count_hex = 0;
   }
 
-  if(millis() - tmr1 >= period){
-    tmr1 = millis();
-    counter += 1; 
-    if(counter == lenth){
-      counter = 0;
+  if(millis() - tmr2 >= period){
+    tmr2 = millis();
+    counter_hex += 1; 
+    if(counter_hex == lenth_hex){
+      counter_hex = 0;
     } 
   }
 
   for(int i = 0; i < 6; i++){
-    if(full_quad[i][counter] == 0){
-      the_pos[0][i] = positions[i][2];
-      the_pos[1][i] = positions[i][3];
-      the_pos[2][i] = down;
-    }else if(full_quad[i][counter] == 1){
-      the_pos[0][i] = positions[i][2];
-      the_pos[1][i] = positions[i][3];
-      the_pos[2][i] = up;
-    }else if(full_quad[i][counter] == 2){
-      the_pos[0][i] = positions[i][0];
-      the_pos[1][i] = positions[i][1];
-      the_pos[2][i] = up;
-    }else if(full_quad[i][counter] == 3){
-      the_pos[0][i] = positions[i][0];
-      the_pos[1][i] = positions[i][1];
-      the_pos[2][i] = down;
+    if(full_hex[i][counter_hex] == 0){
+      the_pos_hex[0][i] = positions[i][2];
+      the_pos_hex[1][i] = positions[i][3];
+      the_pos_hex[2][i] = down;
+    }else if(full_hex[i][counter_hex] == 1){
+      the_pos_hex[0][i] = positions[i][2];
+      the_pos_hex[1][i] = positions[i][3];
+      the_pos_hex[2][i] = up;
+    }else if(full_hex[i][counter_hex] == 2){
+      the_pos_hex[0][i] = positions[i][0];
+      the_pos_hex[1][i] = positions[i][1];
+      the_pos_hex[2][i] = up;
+    }else if(full_hex[i][counter_hex] == 3){
+      the_pos_hex[0][i] = positions[i][0];
+      the_pos_hex[1][i] = positions[i][1];
+      the_pos_hex[2][i] = down;
     }else{
-      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
-      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
-      the_pos[2][i] = down;
+      the_pos_hex[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_hex[i][counter_hex]);
+      the_pos_hex[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_hex[i][counter_hex]);
+      the_pos_hex[2][i] = down;
     }
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
+    move_to(the_pos_hex[0][i], the_pos_hex[1][i], the_pos_hex[2][i], i);
   }
 }
 
 void quadropod(int period, int up, int down){
-  int the_pos[3][6];// 3 координаты 6 ног
+  int the_pos_quad[3][6];// 3 координаты 6 ног
   float pos_quad[6][6] = {
     {1, 0.66, 0.66, 0.33, 0.33, 0},
     {0.33, 0, 1, 0.66, 0.66, 0.33},
@@ -309,67 +301,67 @@ void quadropod(int period, int up, int down){
     {0.33, 0, 1, 0.66, 0.66, 0.33},
   };
 
-  int takt[6] = {3, 1, 3, 1, 3, 1};
-  int lenth = 0;
-  for(int i = 0; i < 6; i++) lenth += takt[i];
-  float full_quad[6][lenth];
-  int count = 0;
+  int takt_quad[6] = {3, 1, 3, 1, 3, 1};
+  int lenth_quad = 0;
+  for(int i = 0; i < 6; i++) lenth_quad += takt_quad[i];
+  float full_quad[6][lenth_quad];
+  int count_quad = 0;
 
   for(int i = 0; i < 6; i++){
     for(int j = 0; j < 6; j++){
-      if(takt[j] == 1){
-        full_quad[i][count] = pos_quad[i][j];
-        count += 1;
-      }else if(takt[j] == 3){
+      if(takt_quad[j] == 1){
+        full_quad[i][count_quad] = pos_quad[i][j];
+        count_quad += 1;
+      }else if(takt_quad[j] == 3){
         if(pos_quad[i][j] == 1){
-          full_quad[i][count] = 1;
-          full_quad[i][count + 1] = 2;
-          full_quad[i][count + 2] = 3;
+          full_quad[i][count_quad] = 1;
+          full_quad[i][count_quad + 1] = 2;
+          full_quad[i][count_quad + 2] = 3;
         }if(pos_quad[i][j] != 1){
-          full_quad[i][count] = pos_quad[i][j];
-          full_quad[i][count + 1] = pos_quad[i][j];
-          full_quad[i][count + 2] = pos_quad[i][j];
+          full_quad[i][count_quad] = pos_quad[i][j];
+          full_quad[i][count_quad + 1] = pos_quad[i][j];
+          full_quad[i][count_quad + 2] = pos_quad[i][j];
         }
-        count += 3;
+        count_quad += 3;
       }
     }
-    count = 0;
+    count_quad = 0;
   }
 
   if(millis() - tmr1 >= period){
     tmr1 = millis();
-    counter += 1; 
-    if(counter == lenth){
-      counter = 0;
+    counter_quad += 1; 
+    if(counter_quad == lenth_quad){
+      counter_quad = 0;
     } 
   }
 
   for(int i = 0; i < 6; i++){
-    if(full_quad[i][counter] == 0){
-      the_pos[0][i] = positions[i][2];
-      the_pos[1][i] = positions[i][3];
-      the_pos[2][i] = down;
-    }else if(full_quad[i][counter] == 1){
-      the_pos[0][i] = positions[i][2];
-      the_pos[1][i] = positions[i][3];
-      the_pos[2][i] = up;
-    }else if(full_quad[i][counter] == 2){
-      the_pos[0][i] = positions[i][0];
-      the_pos[1][i] = positions[i][1];
-      the_pos[2][i] = up;
-    }else if(full_quad[i][counter] == 3){
-      the_pos[0][i] = positions[i][0];
-      the_pos[1][i] = positions[i][1];
-      the_pos[2][i] = down;
+    if(full_quad[i][counter_quad] == 0){
+      the_pos_quad[0][i] = positions[i][2];
+      the_pos_quad[1][i] = positions[i][3];
+      the_pos_quad[2][i] = down;
+    }else if(full_quad[i][counter_quad] == 1){
+      the_pos_quad[0][i] = positions[i][2];
+      the_pos_quad[1][i] = positions[i][3];
+      the_pos_quad[2][i] = up;
+    }else if(full_quad[i][counter_quad] == 2){
+      the_pos_quad[0][i] = positions[i][0];
+      the_pos_quad[1][i] = positions[i][1];
+      the_pos_quad[2][i] = up;
+    }else if(full_quad[i][counter_quad] == 3){
+      the_pos_quad[0][i] = positions[i][0];
+      the_pos_quad[1][i] = positions[i][1];
+      the_pos_quad[2][i] = down;
     }else{
-      the_pos[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter]);
-      the_pos[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter]);
-      the_pos[2][i] = down;
+      the_pos_quad[0][i] = positions[i][0] + ((positions[i][2] - positions[i][0]) * full_quad[i][counter_quad]);
+      the_pos_quad[1][i] = positions[i][1] + ((positions[i][3] - positions[i][1]) * full_quad[i][counter_quad]);
+      the_pos_quad[2][i] = down;
     }
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos[0][i], the_pos[1][i], the_pos[2][i], i);
+    move_to(the_pos_quad[0][i], the_pos_quad[1][i], the_pos_quad[2][i], i);
   }
 }
 

@@ -84,7 +84,6 @@ void build(gh::Builder& b) {
   b.Slider_("distation", &distation).label("отводит на").range(20, 120, 10);
   b.Slider_("step_distation", &step_distation).label("шагает на").range(0, 50, 5);
   b.endRow();
-  b.Slider_("timing", &timing).label("задержка").range(25, 500, 25);
   b.Text("eeprom").rows(1);
   b.beginRow();
   b.Button().label("записать").attach(&write_e);  
@@ -286,7 +285,7 @@ void hexapod(int period, int up, int down){
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos_hex[0][i], the_pos_hex[1][i], the_pos_hex[2][i], i, 0);
+    move_to(the_pos_hex[0][i], the_pos_hex[1][i], the_pos_hex[2][i], i);
   }
 }
 
@@ -361,7 +360,7 @@ void quadropod(int period, int up, int down){
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos_quad[0][i], the_pos_quad[1][i], the_pos_quad[2][i], i, 0);
+    move_to(the_pos_quad[0][i], the_pos_quad[1][i], the_pos_quad[2][i], i);
   }
 }
 
@@ -374,17 +373,31 @@ void angleing(int basic_pos, int alph, int bet, int dist_x){
   int dist_b = tan(radians(bet) * (dist_3 + (dist_x / sqrt(2))));
   //--------------------3---------------------
   int loc_pos[3][6]{
-    {x_abs, x_abs, x_abs, x_abs, x_abs, x_abs},
+    {x_abs, dist_x, x_abs, x_abs, dist_x, x_abs},
     {x_abs, 0, -x_abs, -x_abs, 0, x_abs},
     {dist_a1 + dist_b, dist_a1, dist_b, -dist_a1 - dist_b, -dist_a1, -dist_a1 + dist_b},
   };
   for(int i = 0; i < 6; i++) loc_pos[3][i] += basic_pos;
   for(int i = 0; i < 6; i++){
-    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i, 0);
+    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i);
   }
 }
 
-void move_to(int x, int y, int z, int leg_num, int blocking){ 
+void stand_up(int distation_, int up_dist_, int down_dist_){
+  int root_dist = distation_ / sqrt(2);
+  int loc_pos[2][6]{
+    {root_dist, distation_, root_dist, root_dist, distation_, root_dist},
+    {root_dist, 0, root_dist, root_dist, 0, root_dist},
+  };
+
+  for(int i = up_dist_; i > down_dist_; i--){
+    for(int j = 0; j < 6; j++){
+      move_to(loc_pos[0][j], loc_pos[1][j], i, j);
+    }
+  }
+}
+
+void move_to(int x, int y, int z, int leg_num){ 
   //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
   // -----------1-----------
   // смотри тетрадь стр. 17
@@ -420,6 +433,7 @@ void move_to(int x, int y, int z, int leg_num, int blocking){
           right.setPWM(leg_num * 3 + i, 0, map(last_angle[i][leg_num], 0, 180, SERVOMIN, SERVOMAX));
         }
       }
+      right.setPWM(leg_num * 3 + i, 0, map(degrees[i], 0, 180, SERVOMIN, SERVOMAX));
     }
   }if(leg_num >= 3){
     for(int i = 0; i < 3; i++){
@@ -430,6 +444,7 @@ void move_to(int x, int y, int z, int leg_num, int blocking){
           left.setPWM((leg_num - 3) * 3 + i, 0, map(last_angle[i][leg_num], 180, 0, SERVOMIN, SERVOMAX));
         }
       }
+      left.setPWM((leg_num - 3) * 3 + i, 0, map(degrees[i], 180, 0, SERVOMIN, SERVOMAX));
     }
   }
 }

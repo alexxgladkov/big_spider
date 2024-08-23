@@ -12,10 +12,10 @@ Adafruit_PWMServoDriver left = Adafruit_PWMServoDriver(0x41);
 #define SERVOMIN  90                // Минимальная длительность импульса для сервопривода
 #define SERVOMAX  500               // Максимальная длина импульса для сервопривода
 
-#define a_const 36       // константа:  плеча А
-#define b_const 46       // константа: l плеча В
+#define a_const 34       // константа:  плеча А
+#define b_const 39       // константа: l плеча В
 #define c_const 77       // константа: l плеча C
-#define const_angle 17.5 // угол между осью плеча B перпендикуляром к A
+#define const_angle 18.5 // угол между осью плеча B перпендикуляром к A
 
 #define dist_1 165
 #define dist_2 125
@@ -286,19 +286,19 @@ void hexapod(int period, int up, int down){
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos_hex[0][i], the_pos_hex[1][i], the_pos_hex[2][i], i);
+    move_to(the_pos_hex[0][i], the_pos_hex[1][i], the_pos_hex[2][i], i, 0);
   }
 }
 
 void quadropod(int period, int up, int down){
   int the_pos_quad[3][6];// 3 координаты 6 ног
   float pos_quad[6][6] = {
-    {1, 0.66, 0.66, 0.33, 0.33, 0},
-    {0.33, 0, 1, 0.66, 0.66, 0.33},
-    {0.66, 0.33, 0.33, 0, 1, 0.66},
-    {1, 0.66, 0.66, 0.33, 0.33, 0},
-    {0.66, 0.33, 0.33, 0, 1, 0.66},
-    {0.33, 0, 1, 0.66, 0.66, 0.33},
+    {1,    0.33, 0.33, 0.66, 0.66, 0},
+    {0.66, 0,    1,    0.33, 0.33, 0.66},
+    {0.33, 0.66, 0.66, 0,    1,    0.33},
+    {1,    0.33, 0.33, 0.66, 0.66, 0},
+    {0.33, 0.66, 0.66, 0,    1,    0.33},
+    {0.66, 0,    1,    0.33, 0.33, 0.66},
   };
 
   int takt_quad[6] = {3, 1, 3, 1, 3, 1};
@@ -361,7 +361,7 @@ void quadropod(int period, int up, int down){
   }
 
   for(int i = 0; i < 6; i++){
-    move_to(the_pos_quad[0][i], the_pos_quad[1][i], the_pos_quad[2][i], i);
+    move_to(the_pos_quad[0][i], the_pos_quad[1][i], the_pos_quad[2][i], i, 0);
   }
 }
 
@@ -380,11 +380,11 @@ void angleing(int basic_pos, int alph, int bet, int dist_x){
   };
   for(int i = 0; i < 6; i++) loc_pos[3][i] += basic_pos;
   for(int i = 0; i < 6; i++){
-    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i);
+    move_to(loc_pos[0][i], loc_pos[1][i], loc_pos[2][i], i, 0);
   }
 }
 
-void move_to(int x, int y, int z, int leg_num){ 
+void move_to(int x, int y, int z, int leg_num, int blocking){ 
   //сейчас будем считать углы серво ног при координатах x y z и гомере ноги
   // -----------1-----------
   // смотри тетрадь стр. 17
